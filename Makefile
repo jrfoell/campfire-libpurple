@@ -16,7 +16,7 @@ LDFLAGS=$(CFLAGS)
 %.o: %.c
 	$(CC) -c $(CFLAGS) -o $@ $<
 
-libcampfire: campfire_im.o
+$(LIBNAME): campfire_im.o
 	$(LD) $(LDFLAGS) -shared $< $(PURPLE_LIBS) -o $@
 
 .PHONY: clean
