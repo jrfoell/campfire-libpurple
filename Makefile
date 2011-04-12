@@ -7,10 +7,10 @@ PURPLE_LIBS = $(shell pkg-config --libs purple)
 
 CC:=gcc
 LD:=$(CC)
-CFLAGS=-DPURPLE_PLUGINS
+CFLAGS=-DPURPLE_PLUGINS -DPIC
 CFLAGS+=$(shell pkg-config --cflags purple)
 #CFLAGS+=$(shell pkg-config --cflags pidgin)
-CFLAGS+=-Wall
+CFLAGS+=-Wall -fPIC
 LDFLAGS=$(CFLAGS)
 
 %.o: %.c
