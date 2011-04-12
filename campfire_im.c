@@ -1,4 +1,5 @@
 #include <prpl.h>
+#include <version.h>
 
 static void plugin_init(PurplePlugin *plugin)
 {
@@ -12,11 +13,6 @@ gboolean plugin_load(PurplePlugin *plugin)
 gboolean plugin_unload(PurplePlugin *plugin)
 {
 	return TRUE;
-}
-
-static const char * campfire_list_icon(PurpleAccount *account, PurpleBuddy *buddy)
-{
-	return "campfire";
 }
 
 static void campfire_login(PurpleAccount *acct)
