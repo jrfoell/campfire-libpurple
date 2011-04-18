@@ -1,5 +1,6 @@
 #include <prpl.h>
 #include <version.h>
+#include <glib/gi18n.h>
 
 static void plugin_init(PurplePlugin *plugin)
 {
