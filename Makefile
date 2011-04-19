@@ -4,7 +4,8 @@ LIBNAME=libcampfire
 all: $(LIBNAME)
  
 
-C_SRCS:= campfire_im.o
+C_SRCS:= campfire_im.o \
+  campfire.c
 
 # Object file names using 'Substitution Reference'
 C_OBJS:=$(C_SRCS:.c=.o)
