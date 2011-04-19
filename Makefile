@@ -17,14 +17,18 @@ CFLAGS=-DPURPLE_PLUGINS -DPIC -DENABLE_NLS
 CFLAGS+=$(shell pkg-config --cflags purple)
 #CFLAGS+=$(shell pkg-config --cflags pidgin)
 CFLAGS+=-Wall -fPIC
-LDFLAGS=$(CFLAGS)
+LDFLAGS=-shared -Wl
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) -o $@ $<
 
 $(LIBNAME): $(C_OBJS)
-	$(LD) $(LDFLAGS) -shared $^ $(PURPLE_LIBS) -o $@
+	$(LD) $(LDFLAGS) -o $@ $^ $(PURPLE_LIBS)
 
+.PHONY: install
+install: $(LIBNAME)
+	cp $(LIBNAME) ~/.purple/plugins
+	
 .PHONY: clean
 
 clean:
