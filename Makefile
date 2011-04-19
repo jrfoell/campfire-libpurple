@@ -27,6 +27,7 @@ $(LIBNAME): $(C_OBJS)
 
 .PHONY: install
 install: $(LIBNAME)
+	[ -d ~/.purple/plugins ] || mkdir -p ~/.purple/plugins
 	cp $(LIBNAME) ~/.purple/plugins
 	
 .PHONY: clean
