@@ -1,6 +1,7 @@
 #include <prpl.h>
 #include <version.h>
 #include <glib/gi18n.h>
+#include "campfire.h"
 
 static void plugin_init(PurplePlugin *plugin)
 {
@@ -8,6 +9,8 @@ static void plugin_init(PurplePlugin *plugin)
 
 gboolean plugin_load(PurplePlugin *plugin)
 {
+	campfire_plugin_init(plugin);
+
 	return TRUE;
 }
 
