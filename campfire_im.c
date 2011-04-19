@@ -113,9 +113,9 @@ static PurplePluginProtocolInfo campfire_protocol_info = {
 	NULL,                   /* alias_buddy */
 	NULL,                   /* group_buddy */
 	NULL,                   /* rename_group */
-	campfire_buddy_free,			/* buddy_free */
+	campfire_buddy_free,	/* buddy_free */
 	NULL,                   /* convo_closed */
-	purple_normalize_nocase,			/* normalize */
+	purple_normalize_nocase,/* normalize */
 	NULL,                   /* set_buddy_icon */
 	NULL,                   /* remove_group */
 	NULL,                   /* get_cb_real_name */
