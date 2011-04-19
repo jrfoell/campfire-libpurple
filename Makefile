@@ -1,4 +1,4 @@
-LIBNAME=libcampfire
+LIBNAME=libcampfire.so
 .PHONY: all
 
 all: $(LIBNAME)
