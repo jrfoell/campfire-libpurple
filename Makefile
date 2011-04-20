@@ -27,8 +27,8 @@ $(LIBNAME): $(C_OBJS)
 
 .PHONY: install
 install: $(LIBNAME)
-	[ -d ~/.purple/plugins ] || mkdir -p ~/.purple/plugins
-	cp $(LIBNAME) ~/.purple/plugins
+	install -D $(LIBNAME) ~/.purple/plugins/$(LIBNAME)
+	install --mode=0644 campfire16.png /usr/share/pixmaps/pidgin/protocols/16/campfire.png
 	
 .PHONY: clean
 

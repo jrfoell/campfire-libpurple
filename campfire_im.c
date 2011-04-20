@@ -58,6 +58,11 @@ static GList * campfire_statuses(PurpleAccount *acct)
 
 }
 
+const char *campfireim_list_icon(PurpleAccount *account, PurpleBuddy *buddy)
+{
+	return "campfire";
+}
+
 static PurplePluginProtocolInfo campfire_protocol_info = {
 	/* options */
 	OPT_PROTO_UNIQUE_CHATNAME,
@@ -73,7 +78,7 @@ static PurplePluginProtocolInfo campfire_protocol_info = {
 		10000,                           /* max_filesize */
 		PURPLE_ICON_SCALE_DISPLAY,       /* scale_rules */
 	},
-	NULL,   /* list_icon */
+	campfireim_list_icon,   /* list_icon */
 	NULL,                   /* list_emblems */
 	campfire_status_text, /* status_text */
 	NULL,
@@ -146,7 +151,7 @@ static PurplePluginInfo info = {
 	PURPLE_PLUGIN_MAGIC,
 	PURPLE_MAJOR_VERSION,
 	PURPLE_MINOR_VERSION,
-	PURPLE_PLUGIN_STANDARD, /* type */
+	PURPLE_PLUGIN_PROTOCOL, /* type */
 	NULL, /* ui_requirement */
 	0, /* flags */
 	NULL, /* dependencies */
