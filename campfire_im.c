@@ -1,11 +1,10 @@
 #include <prpl.h>
 #include <version.h>
 #include <glib/gi18n.h>
+#include <accountopt.h>
+
 #include "campfire.h"
 
-static void plugin_init(PurplePlugin *plugin)
-{
-}
 
 gboolean plugin_load(PurplePlugin *plugin)
 {
@@ -40,6 +39,13 @@ static void campfire_set_status(PurpleAccount *acct, PurpleStatus *status)
 {
 }
 
+static GHashTable * campfire_get_account_text_table(PurpleAccount *account)
+{
+	GHashTable *table;
+	table = g_hash_table_new(g_str_hash, g_str_equal);
+	g_hash_table_insert(table, "login_label", (gpointer)_("API token"));
+	return table;
+}
 
 static GList * campfire_statuses(PurpleAccount *acct)
 {
@@ -65,7 +71,7 @@ const char *campfireim_list_icon(PurpleAccount *account, PurpleBuddy *buddy)
 
 static PurplePluginProtocolInfo campfire_protocol_info = {
 	/* options */
-	OPT_PROTO_UNIQUE_CHATNAME,
+	OPT_PROTO_NO_PASSWORD | OPT_PROTO_SLASH_COMMANDS_NATIVE,
 	NULL,                   /* user_splits */
 	NULL,                   /* protocol_options */
 	//NO_BUDDY_ICONS          /* icon_spec */
@@ -139,7 +145,8 @@ static PurplePluginProtocolInfo campfire_protocol_info = {
 	NULL,                   /* unregister_user */
 	NULL,                   /* send_attention */
 	NULL,                   /* attention_types */
-	sizeof(PurplePluginProtocolInfo) /* struct_size */
+	sizeof(PurplePluginProtocolInfo), /* struct_size */
+	campfire_get_account_text_table /* get_account_text_table */	
 };
 
 static GList * campfire_actions(PurplePlugin *plugin, gpointer context)
@@ -175,5 +182,13 @@ static PurplePluginInfo info = {
 	NULL,
 	NULL
 };
+
+static void plugin_init(PurplePlugin *plugin)
+{
+	PurpleAccountUserSplit *split;
+	
+	split = purple_account_user_split_new(_("Hostname"), NULL, '@');
+	campfire_protocol_info.user_splits = g_list_append(campfire_protocol_info.user_splits, split);
+}
 
 PURPLE_INIT_PLUGIN(campfire, plugin_init, info);
