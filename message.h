@@ -1,8 +1,6 @@
-#ifndef CAMPFIRE_H
-#define CAMPFIRE_H
+#ifndef MESSAGE_H
+#define MESSAGE_H
 #include "plugin.h"
-
-void campfire_plugin_init(PurplePlugin *plugin);
 
 typedef struct _CampfireMessage {
 	enum {
@@ -15,5 +13,5 @@ typedef struct _CampfireMessage {
 } CampfireMessage;
 
 
-#endif /* CAMPFIRE_H */
+#endif /* not MESSAGE_H */
 
