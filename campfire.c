@@ -31,7 +31,9 @@ static void campfire_login_callback(gpointer data, PurpleSslConnection *gsc, Pur
 	CampfireConn *campfire = gc->proto_data;
 	campfire->gsc = gsc;
 	
-	purple_debug_info("campfire", "WTF\n");
+	static char buf[4096];
+	purple_ssl_read(gsc, buf, sizeof(buf) - 1);
+	purple_debug_info("campfire", "wtf: %s", buf);
 }
 
 static void campfire_ssl_failure(PurpleSslConnection *gsc, PurpleSslErrorType error, gpointer data)
@@ -55,7 +57,7 @@ static void campfire_login(PurpleAccount *account)
 	campfire->account = account;
 	
 	campfire->gsc = purple_ssl_connect(account,
-									   "ingroup.campfirenow.com", //fixme
+									   "ingroup.campfirenow.com/rooms.xml", //fixme
 									   443,
 									   campfire_login_callback,
 									   campfire_ssl_failure,
@@ -68,8 +70,6 @@ static void campfire_login(PurpleAccount *account)
 										   _("Unable to connect"));
 	}
 }
-
-
 
 static void campfire_close(PurpleConnection *gc)
 {
