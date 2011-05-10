@@ -25,12 +25,23 @@ gboolean plugin_unload(PurplePlugin *plugin)
 	return TRUE;
 }
 
-static void campfire_login_callback(gpointer data, gint source, const gchar *error)
+static void campfire_login_callback(gpointer data, PurpleSslConnection *gsc, PurpleInputCondition cond)
 {
 	PurpleConnection *gc = data;	
-	CampfireConn *campfire = purple_connection_get_protocol_data(gc);
-	campfire->fd = source;
+	CampfireConn *campfire = gc->proto_data;
+	campfire->gsc = gsc;
+	
 	purple_debug_info("campfire", "WTF\n");
+}
+
+static void campfire_ssl_failure(PurpleSslConnection *gsc, PurpleSslErrorType error, gpointer data)
+{
+	PurpleConnection *gc = data;
+	CampfireConn *campfire = gc->proto_data;
+
+	campfire->gsc = NULL;
+
+	purple_connection_ssl_error (gc, error);
 }
 
 static void campfire_login(PurpleAccount *account)
@@ -43,13 +54,22 @@ static void campfire_login(PurpleAccount *account)
 	campfire->gc = gc;
 	campfire->account = account;
 	
-	if(purple_proxy_connect(gc, account,
-						 "ingroup.campfirenow.com", 443, campfire_login_callback, gc) == NULL) {
+	campfire->gsc = purple_ssl_connect(account,
+									   "ingroup.campfirenow.com", //fixme
+									   443,
+									   campfire_login_callback,
+									   campfire_ssl_failure,
+									   gc);
+
+	if(!campfire->gsc)
+	{
 			purple_connection_error_reason(gc,
 										   PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
 										   _("Unable to connect"));
 	}
 }
+
+
 
 static void campfire_close(PurpleConnection *gc)
 {
