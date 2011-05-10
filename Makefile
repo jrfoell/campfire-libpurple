@@ -4,8 +4,8 @@ LIBNAME=libcampfire.so
 all: $(LIBNAME)
  
 
-C_SRCS:= campfire_im.o \
-  campfire.c
+C_SRCS:= campfire.c \
+  message.c
 
 # Object file names using 'Substitution Reference'
 C_OBJS:=$(C_SRCS:.c=.o)
@@ -25,10 +25,20 @@ LDFLAGS=-shared -Wl
 $(LIBNAME): $(C_OBJS)
 	$(LD) $(LDFLAGS) -o $@ $^ $(PURPLE_LIBS)
 
+PIDGIN:=$(shell which pidgin)
+PIDGIN_BIN_DIR:=$(strip $(shell dirname $(PIDGIN)))
+PREFIX=$(strip $(PIDGIN_BIN_DIR)/..)
+PIDGIN_PLUGIN_DIR:=$(PREFIX)/lib/purple-2
+
 .PHONY: install
 install: $(LIBNAME)
-	install -D $(LIBNAME) ~/.purple/plugins/$(LIBNAME)
-	install --mode=0644 campfire16.png /usr/share/pixmaps/pidgin/protocols/16/campfire.png
+	install -D $(LIBNAME) $(PIDGIN_PLUGIN_DIR)/$(LIBNAME)
+	install --mode=0644 campfire16.png $(PREFIX)/share/pixmaps/pidgin/protocols/16/campfire.png
+	
+.PHONY: uninstall
+uninstall: $(LIBNAME)
+	rm $(PIDGIN_PLUGIN_DIR)/$(LIBNAME)
+	rm $(PREFIX)/share/pixmaps/pidgin/protocols/16/campfire.png
 	
 .PHONY: clean
 

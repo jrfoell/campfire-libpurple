@@ -1,5 +1,5 @@
-#ifndef CAMPFIRE_H
-#define CAMPFIRE_H
+#ifndef MESSAGE_H
+#define MESSAGE_H
 #include "plugin.h"
 #include "roomlist.h"
 
@@ -23,5 +23,5 @@ GList *campfire_chat_info(PurpleConnection *gc);
 PurpleRoomlist *campfire_roomlist_get_list(PurpleConnection *gc);
 void campfire_roomlist_cancel(PurpleRoomlist *list);
 
-#endif /* CAMPFIRE_H */
+#endif /* not MESSAGE_H */
 
