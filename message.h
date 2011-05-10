@@ -1,7 +1,9 @@
 #ifndef MESSAGE_H
 #define MESSAGE_H
-#include "plugin.h"
-#include "roomlist.h"
+
+//purple includes
+#include <plugin.h>
+#include <roomlist.h>
 
 typedef struct _CampfireMessage {
 	enum {
@@ -15,13 +17,12 @@ typedef struct _CampfireMessage {
 
 
 typedef struct _CampfireConn {
-	PurpleRoomlist *roomlist;
+	PurpleAccount *account;
+	PurpleRoomlist *roomlist;	
 } CampfireConn;
 
-void campfire_plugin_init(PurplePlugin *plugin);
-GList *campfire_chat_info(PurpleConnection *gc);
-PurpleRoomlist *campfire_roomlist_get_list(PurpleConnection *gc);
-void campfire_roomlist_cancel(PurpleRoomlist *list);
+void campfire_message_send(CampfireMessage *cm);
+void campfire_room_query(CampfireConn *campfire);
 
 #endif /* not MESSAGE_H */
 

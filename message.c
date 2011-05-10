@@ -1,6 +1,10 @@
+//system includes
 #include <xmlnode.h>
-#include "notify.h"
 
+//purple includes
+#include <notify.h>
+
+//local includes
 #include "message.h"
 
 void campfire_message_send(CampfireMessage *cm)
@@ -37,4 +41,12 @@ void campfire_message_send(CampfireMessage *cm)
 	//jabber_send(message);
 
 	xmlnode_free(message);
+}
+
+void campfire_room_query(CampfireConn *campfire)
+{
+	//@TODO do some curl/xml stuff here
+	//see
+	//protocols/jabber/chat.c:864 roomlist_ok_cb() AND
+	//protocols/jabber/chat.c:800 roomlist_disco_result_cb()
 }

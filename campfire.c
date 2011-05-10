@@ -1,17 +1,15 @@
 //system includes
 #include <glib/gi18n.h>
-#include <accountopt.h>
 #include <xmlnode.h>
 
 //purple includes
-#include <notify.h>
 #include <prpl.h>
+#include <notify.h>
 #include <version.h>
+#include <accountopt.h>
 
 //local includes
 #include "message.h"
-
-void campfire_room_query(CampfireConn *campfire);
 
 gboolean plugin_load(PurplePlugin *plugin)
 {
@@ -23,9 +21,14 @@ gboolean plugin_unload(PurplePlugin *plugin)
 	return TRUE;
 }
 
-static void campfire_login(PurpleAccount *acct)
+static void campfire_login(PurpleAccount *account)
 {
-	//campfire is stateless, so we might just leave this empty
+	//don't really login (it's stateless), but init the CampfireConn
+	PurpleConnection *gc = purple_account_get_connection(account);
+	CampfireConn *campfire;
+
+	campfire = gc->proto_data = g_new0(CampfireConn, 1);
+	campfire->account = account;	
 }
 
 static void campfire_close(PurpleConnection *gc)
@@ -103,8 +106,14 @@ PurpleRoomlist *campfire_roomlist_get_list(PurpleConnection *gc)
 
 	purple_roomlist_set_fields(campfire->roomlist, fields);
 
+	purple_roomlist_set_in_progress(campfire->roomlist, TRUE);
+
 	campfire_room_query(campfire);
 	
+	purple_roomlist_set_in_progress(campfire->roomlist, FALSE);
+	//purple_roomlist_unref(campfire->roomlist);
+	//campfire->roomlist = NULL;
+
 	return campfire->roomlist;
 }
 
@@ -125,17 +134,6 @@ void campfire_roomlist_cancel(PurpleRoomlist *list)
 	}
 }
 
-void campfire_room_query(CampfireConn *campfire)
-{
-	purple_roomlist_set_in_progress(campfire->roomlist, TRUE);
-	//@TODO do some curl/xml stuff here
-	//see
-	//protocols/jabber/chat.c:864 roomlist_ok_cb() AND
-	//protocols/jabber/chat.c:800 roomlist_disco_result_cb()
-	purple_roomlist_set_in_progress(campfire->roomlist, FALSE);
-	purple_roomlist_unref(campfire->roomlist);
-	campfire->roomlist = NULL;
-}
 
 const char *campfireim_list_icon(PurpleAccount *account, PurpleBuddy *buddy)
 {
@@ -165,7 +163,7 @@ static PurplePluginProtocolInfo campfire_protocol_info = {
 	NULL,                   /* blist_node_menu */
 	campfire_chat_info,     /* chat_info */
 	NULL,                   /* chat_info_defaults */
-	campfire_login,       	/* login */ //can we make this null?
+	campfire_login,       	/* login */
 	campfire_close,       	/* close */
 	NULL,     		        /* send_im */
 	NULL,                   /* set_info */
