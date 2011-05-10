@@ -7,6 +7,10 @@
 #include <notify.h>
 #include <version.h>
 #include <accountopt.h>
+#include <debug.h>
+//for connections et al.
+#include <sslconn.h>
+#include <proxy.h> 
 
 //local includes
 #include "message.h"
@@ -21,6 +25,14 @@ gboolean plugin_unload(PurplePlugin *plugin)
 	return TRUE;
 }
 
+static void campfire_login_callback(gpointer data, gint source, const gchar *error)
+{
+	PurpleConnection *gc = data;	
+	CampfireConn *campfire = purple_connection_get_protocol_data(gc);
+	campfire->fd = source;
+	purple_debug_info("campfire", "WTF\n");
+}
+
 static void campfire_login(PurpleAccount *account)
 {
 	//don't really login (it's stateless), but init the CampfireConn
@@ -28,7 +40,15 @@ static void campfire_login(PurpleAccount *account)
 	CampfireConn *campfire;
 
 	campfire = gc->proto_data = g_new0(CampfireConn, 1);
-	campfire->account = account;	
+	campfire->gc = gc;
+	campfire->account = account;
+	
+	if(purple_proxy_connect(gc, account,
+						 "ingroup.campfirenow.com", 443, campfire_login_callback, gc) == NULL) {
+			purple_connection_error_reason(gc,
+										   PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
+										   _("Unable to connect"));
+	}
 }
 
 static void campfire_close(PurpleConnection *gc)

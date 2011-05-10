@@ -45,6 +45,7 @@ void campfire_message_send(CampfireMessage *cm)
 
 void campfire_room_query(CampfireConn *campfire)
 {
+	
 	//@TODO do some curl/xml stuff here
 	//see
 	//protocols/jabber/chat.c:864 roomlist_ok_cb() AND

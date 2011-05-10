@@ -19,6 +19,9 @@ typedef struct _CampfireMessage {
 typedef struct _CampfireConn {
 	PurpleAccount *account;
 	PurpleRoomlist *roomlist;	
+	PurpleConnection *gc;
+	PurpleSslConnection *gsc;
+	int fd;
 } CampfireConn;
 
 void campfire_message_send(CampfireMessage *cm);
