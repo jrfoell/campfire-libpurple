@@ -1,8 +1,7 @@
 #ifndef CAMPFIRE_H
 #define CAMPFIRE_H
 #include "plugin.h"
-
-void campfire_plugin_init(PurplePlugin *plugin);
+#include "roomlist.h"
 
 typedef struct _CampfireMessage {
 	enum {
@@ -14,6 +13,15 @@ typedef struct _CampfireMessage {
 	char *body;
 } CampfireMessage;
 
+
+typedef struct _CampfireConn {
+	PurpleRoomlist *roomlist;
+} CampfireConn;
+
+void campfire_plugin_init(PurplePlugin *plugin);
+GList *campfire_chat_info(PurpleConnection *gc);
+PurpleRoomlist *campfire_roomlist_get_list(PurpleConnection *gc);
+void campfire_roomlist_cancel(PurpleRoomlist *list);
 
 #endif /* CAMPFIRE_H */
 

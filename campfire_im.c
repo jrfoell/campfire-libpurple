@@ -20,6 +20,7 @@ gboolean plugin_unload(PurplePlugin *plugin)
 
 static void campfire_login(PurpleAccount *acct)
 {
+	//campfire is stateless, so we might just leave this empty
 }
 
 static void campfire_close(PurpleConnection *gc)
@@ -86,19 +87,19 @@ static PurplePluginProtocolInfo campfire_protocol_info = {
 	},
 	campfireim_list_icon,   /* list_icon */
 	NULL,                   /* list_emblems */
-	campfire_status_text, /* status_text */
+	campfire_status_text,   /* status_text */
 	NULL,
-	campfire_statuses,    /* status_types */
+	campfire_statuses,      /* status_types */
 	NULL,                   /* blist_node_menu */
-	NULL,                   /* chat_info */
+	campfire_chat_info,     /* chat_info */
 	NULL,                   /* chat_info_defaults */
-	campfire_login,       		/* login */
-	campfire_close,       		/* close */
-	NULL,     		/* send_im */
+	campfire_login,       	/* login */ //can we make this null?
+	campfire_close,       	/* close */
+	NULL,     		        /* send_im */
 	NULL,                   /* set_info */
 	NULL,
 	NULL,
-	campfire_set_status,/* set_status */
+	campfire_set_status,    /* set_status */
 	NULL,                   /* set_idle */
 	NULL,                   /* change_passwd */
 	NULL,
@@ -132,8 +133,8 @@ static PurplePluginProtocolInfo campfire_protocol_info = {
 	NULL,                   /* get_cb_real_name */
 	NULL,                   /* set_chat_topic */
 	NULL,                   /* find_blist_chat */
-	NULL,                   /* roomlist_get_list */
-	NULL,                   /* roomlist_cancel */
+	campfire_roomlist_get_list,/* roomlist_get_list */
+	campfire_roomlist_cancel,/* roomlist_cancel */
 	NULL,                   /* roomlist_expand_category */
 	NULL,                   /* can_receive_file */
 	NULL,                   /* send_file */
@@ -148,11 +149,6 @@ static PurplePluginProtocolInfo campfire_protocol_info = {
 	sizeof(PurplePluginProtocolInfo), /* struct_size */
 	campfire_get_account_text_table /* get_account_text_table */	
 };
-
-static GList * campfire_actions(PurplePlugin *plugin, gpointer context)
-{
-	return NULL;
-}
 
 static PurplePluginInfo info = {
 	PURPLE_PLUGIN_MAGIC,
@@ -176,7 +172,7 @@ static PurplePluginInfo info = {
 	NULL, /* ui_info */
 	&campfire_protocol_info, /* extra_info */
 	NULL, /* prefs_info */
-	campfire_actions, /* actions */
+	NULL, /* actions */
 	NULL, /* padding */
 	NULL,
 	NULL,
