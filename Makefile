@@ -34,6 +34,8 @@ PIDGIN_PLUGIN_DIR:=$(PREFIX)/lib/purple-2
 install: $(LIBNAME)
 	install -D $(LIBNAME) $(PIDGIN_PLUGIN_DIR)/$(LIBNAME)
 	install --mode=0644 campfire16.png $(PREFIX)/share/pixmaps/pidgin/protocols/16/campfire.png
+	install --mode=0644 campfire22.png $(PREFIX)/share/pixmaps/pidgin/protocols/22/campfire.png
+	install --mode=0644 campfire48.png $(PREFIX)/share/pixmaps/pidgin/protocols/48/campfire.png
 	
 .PHONY: uninstall
 uninstall: $(LIBNAME)
