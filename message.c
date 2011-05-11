@@ -3,6 +3,7 @@
 
 //purple includes
 #include <notify.h>
+#include <debug.h>
 
 //local includes
 #include "message.h"
@@ -46,6 +47,7 @@ void campfire_message_send(CampfireMessage *cm)
 void campfire_room_query(CampfireConn *campfire)
 {
 	
+	purple_debug_info("campfire", "No roomlist query implemented.");
 	//@TODO do some curl/xml stuff here
 	//see
 	//protocols/jabber/chat.c:864 roomlist_ok_cb() AND

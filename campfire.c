@@ -57,17 +57,16 @@ static void campfire_login(PurpleAccount *account)
 	campfire->account = account;
 	
 	campfire->gsc = purple_ssl_connect(account,
-									   "ingroup.campfirenow.com/rooms.xml", //fixme
-									   443,
-									   campfire_login_callback,
-									   campfire_ssl_failure,
-									   gc);
+	                                   purple_account_get_string(account, "hostname", "ingroup.campfirenow.com"), 
+	                                   443,
+	                                   campfire_login_callback,
+	                                   campfire_ssl_failure,
+	                                   gc);
 
-	if(!campfire->gsc)
-	{
-			purple_connection_error_reason(gc,
-										   PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
-										   _("Unable to connect"));
+	if(!campfire->gsc) {
+		purple_connection_error_reason(gc,
+		                               PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
+		                               _("Unable to connect"));
 	}
 }
 
@@ -291,10 +290,13 @@ static PurplePluginInfo info = {
 
 static void plugin_init(PurplePlugin *plugin)
 {
-	PurpleAccountUserSplit *split;
+	/*PurpleAccountUserSplit *split;*/
+	PurpleAccountOption *option;
 	
-	split = purple_account_user_split_new(_("Hostname"), NULL, '@');
-	campfire_protocol_info.user_splits = g_list_append(campfire_protocol_info.user_splits, split);
+	/*split = purple_account_user_split_new(_("Hostname"), NULL, '@');*/
+	/*campfire_protocol_info.user_splits = g_list_append(campfire_protocol_info.user_splits, split);*/
+	option = purple_account_option_string_new(_("Hostname"), "hostname", "");
+	campfire_protocol_info.protocol_options = g_list_append(campfire_protocol_info.protocol_options, option);
 }
 
 PURPLE_INIT_PLUGIN(campfire, plugin_init, info);
