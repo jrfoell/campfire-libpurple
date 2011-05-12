@@ -184,13 +184,12 @@ static PurplePluginProtocolInfo campfire_protocol_info = {
 	OPT_PROTO_NO_PASSWORD | OPT_PROTO_SLASH_COMMANDS_NATIVE,
 	NULL,                   /* user_splits */
 	NULL,                   /* protocol_options */
-	//NO_BUDDY_ICONS          /* icon_spec */
 	{   /* icon_spec, a PurpleBuddyIconSpec */
 		"png,jpg,gif",                   /* format */
 		0,                               /* min_width */
 		0,                               /* min_height */
-		50,                             /* max_width */
-		50,                             /* max_height */
+		128,                             /* max_width */
+		128,                             /* max_height */
 		10000,                           /* max_filesize */
 		PURPLE_ICON_SCALE_DISPLAY,       /* scale_rules */
 	},
@@ -206,14 +205,14 @@ static PurplePluginProtocolInfo campfire_protocol_info = {
 	campfire_close,       	/* close */
 	NULL,     		        /* send_im */
 	NULL,                   /* set_info */
-	NULL,
-	NULL,
+	NULL,                   /* send_typing */
+	NULL,                   /* get_info */
 	campfire_set_status,    /* set_status */
 	NULL,                   /* set_idle */
 	NULL,                   /* change_passwd */
-	NULL,
+	NULL,                   /* add_buddy */
 	NULL,                   /* add_buddies */
-	NULL,
+	NULL,                   /* remove_buddy */
 	NULL,                   /* remove_buddies */
 	NULL,                   /* add_permit */
 	NULL,                   /* add_deny */
@@ -260,29 +259,29 @@ static PurplePluginProtocolInfo campfire_protocol_info = {
 };
 
 static PurplePluginInfo info = {
-	PURPLE_PLUGIN_MAGIC,
-	PURPLE_MAJOR_VERSION,
-	PURPLE_MINOR_VERSION,
-	PURPLE_PLUGIN_PROTOCOL, /* type */
-	NULL, /* ui_requirement */
-	0, /* flags */
-	NULL, /* dependencies */
-	PURPLE_PRIORITY_DEFAULT, /* priority */
-	"prpl-campfire", /* id */
-	"Campfire", /* name */
-	"0.1", /* version */
-	"Campfire Chat", /* summary */
-	"Campfire Chat Protocol Plugin", /* description */
-	"Jake Foell <jfoell@gmail.com>", /* author */
+	PURPLE_PLUGIN_MAGIC,                             /* magic */
+	PURPLE_MAJOR_VERSION,                            /* major_version */
+	PURPLE_MINOR_VERSION,                            /* minor_version */
+	PURPLE_PLUGIN_PROTOCOL,                          /* type */
+	NULL,                                            /* ui_requirement */
+	0,                                               /* flags */
+	NULL,                                            /* dependencies */
+	PURPLE_PRIORITY_DEFAULT,                         /* priority */
+	"prpl-campfire",                                 /* id */
+	"Campfire",                                      /* name */
+	"0.1",                                           /* version */
+	"Campfire Chat",                                 /* summary */
+	"Campfire Chat Protocol Plugin",                 /* description */
+	"Jake Foell <jfoell@gmail.com>",                 /* author */
 	"https://github.com/jrfoell/campfire-libpurple", /* homepage */
-	plugin_load, /* load */
-	plugin_unload, /* unload */
-	NULL, /* destroy */
-	NULL, /* ui_info */
-	&campfire_protocol_info, /* extra_info */
-	NULL, /* prefs_info */
-	NULL, /* actions */
-	NULL, /* padding */
+	plugin_load,                                     /* load */
+	plugin_unload,                                   /* unload */
+	NULL,                                            /* destroy */
+	NULL,                                            /* ui_info */
+	&campfire_protocol_info,                         /* extra_info */
+	NULL,                                            /* prefs_info */
+	NULL,                                            /* actions */
+	NULL,                                            /* padding... */
 	NULL,
 	NULL,
 	NULL
@@ -290,11 +289,8 @@ static PurplePluginInfo info = {
 
 static void plugin_init(PurplePlugin *plugin)
 {
-	/*PurpleAccountUserSplit *split;*/
 	PurpleAccountOption *option;
 	
-	/*split = purple_account_user_split_new(_("Hostname"), NULL, '@');*/
-	/*campfire_protocol_info.user_splits = g_list_append(campfire_protocol_info.user_splits, split);*/
 	option = purple_account_option_string_new(_("Hostname"), "hostname", "");
 	campfire_protocol_info.protocol_options = g_list_append(campfire_protocol_info.protocol_options, option);
 }
