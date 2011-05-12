@@ -25,15 +25,35 @@ gboolean plugin_unload(PurplePlugin *plugin)
 	return TRUE;
 }
 
+static void campfire_recv_callback(gpointer data, PurpleSslConnection *gsc,
+                                    PurpleInputCondition cond)
+{
+	PurpleConnection *gc = data;
+	static gchar buf[2048];
+	int len;
+
+	while ((len = purple_ssl_read(gsc, buf, sizeof(buf) - 1)) > 0) {
+		buf[len] = '\0';
+		purple_debug_info("campfire",
+		                  "HTTP input: %d bytes:\n%s\n",
+		                  len, buf);
+	}
+
+	if (len == 0) {
+		purple_connection_error_reason(gc, 
+		                               PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
+		                               "Server closed the connection");
+	}
+}
+
 static void campfire_login_callback(gpointer data, PurpleSslConnection *gsc, PurpleInputCondition cond)
 {
 	PurpleConnection *gc = data;	
 	CampfireConn *campfire = gc->proto_data;
 	campfire->gsc = gsc;
 	
-	static char buf[4096];
-	purple_ssl_read(gsc, buf, sizeof(buf) - 1);
-	purple_debug_info("campfire", "wtf: %s", buf);
+	purple_connection_set_state(gc, PURPLE_CONNECTED);
+	purple_ssl_input_add(gsc, campfire_recv_callback, gc);
 }
 
 static void campfire_ssl_failure(PurpleSslConnection *gsc, PurpleSslErrorType error, gpointer data)
@@ -59,8 +79,8 @@ static void campfire_login(PurpleAccount *account)
 	campfire->gsc = purple_ssl_connect(account,
 	                                   purple_account_get_string(account, "hostname", "ingroup.campfirenow.com"), 
 	                                   443,
-	                                   campfire_login_callback,
-	                                   campfire_ssl_failure,
+					   campfire_login_callback,
+					   campfire_ssl_failure,
 	                                   gc);
 
 	if(!campfire->gsc) {
