@@ -157,8 +157,8 @@ PurpleRoomlist *campfire_roomlist_get_list(PurpleConnection *gc)
 	
 	campfire->roomlist = purple_roomlist_new(purple_connection_get_account(gc));
 
-	f = purple_roomlist_field_new(PURPLE_ROOMLIST_FIELD_STRING, "", "room", TRUE);
-	fields = g_list_append(fields, f);
+	/*f = purple_roomlist_field_new(PURPLE_ROOMLIST_FIELD_STRING, "", "room", TRUE);*/
+	/*fields = g_list_append(fields, f);*/
 
 	f = purple_roomlist_field_new(PURPLE_ROOMLIST_FIELD_STRING, _("Topic"), "topic", FALSE);
 	fields = g_list_append(fields, f);
