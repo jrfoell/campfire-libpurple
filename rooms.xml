@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rooms type="array">
+  <room>
+    <created-at type="datetime">2011-03-25T21:35:07Z</created-at>
+    <id type="integer">390707</id>
+    <locked type="boolean">false</locked>
+    <membership-limit type="integer">100</membership-limit>
+    <name>Overnight Web Challenge</name>
+    <topic>General room for discussions.  We can add more rooms if it is necessary.</topic>
+    <updated-at type="datetime">2011-03-26T00:05:18Z</updated-at>
+  </room>
+</rooms>
