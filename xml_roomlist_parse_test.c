@@ -10,7 +10,6 @@
  */
 #include <stdio.h>
 #include <string.h>
-#include <stdbool.h>
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 
@@ -42,15 +41,16 @@ static void print_element_names(xmlNode * a_node)
 	}
 }
 
-static bool is_roomlist(xmlNode *node)
+static int is_roomlist(xmlNode *node)
 {
-	if (    node
-	     && node->type == XML_ELEMENT_NODE
-	     && (strncmp(node->name, "rooms", 5) == 0)) {
+	int x =    node
+	        && node->type == XML_ELEMENT_NODE
+	        && (strncmp(node->name, "rooms", 5) == 0);
+	if (x) {
 		printf("yup, it's a rooms list.\n");
-		return true;
+		return 1;
 	}
-	return false;
+	return 0;
 
 }
 
