@@ -12,7 +12,7 @@ typedef struct _CampfireMessage {
 		CAMPFIRE_MESSAGE_SOUND,
 		CAMPFIRE_MESSAGE_TWEET
 	} type;
-	char *body;
+	gchar *body;
 } CampfireMessage;
 
 
@@ -21,11 +21,19 @@ typedef struct _CampfireConn {
 	PurpleRoomlist *roomlist;	
 	PurpleConnection *gc;
 	PurpleSslConnection *gsc;
-	int fd;
+	gint fd;
 } CampfireConn;
+
+
+typedef struct _CampfireRawMessage {
+  gchar *message;
+  gsize size;
+} CampfireRawMessage;
+
 
 void campfire_message_send(CampfireMessage *cm);
 void campfire_room_query(CampfireConn *campfire);
+void campfire_curl_room_query(CampfireConn *campfire);
 
 #endif /* not MESSAGE_H */
 

@@ -17,7 +17,7 @@ CFLAGS=-DPURPLE_PLUGINS -DPIC -DENABLE_NLS
 CFLAGS+=$(shell pkg-config --cflags purple)
 #CFLAGS+=$(shell pkg-config --cflags pidgin)
 CFLAGS+=-Wall -fPIC
-LDFLAGS=-shared -Wl
+LDFLAGS=-shared -lcurl -Wl,-Bsymbolic-functions
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) -o $@ $<

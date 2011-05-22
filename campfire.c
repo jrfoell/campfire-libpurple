@@ -1,12 +1,12 @@
 //system includes
 #include <glib/gi18n.h>
-#include <xmlnode.h>
 
 //purple includes
 #include <prpl.h>
 #include <notify.h>
 #include <version.h>
 #include <accountopt.h>
+#include <xmlnode.h>
 #include <debug.h>
 //for connections et al.
 #include <sslconn.h>
@@ -167,7 +167,7 @@ PurpleRoomlist *campfire_roomlist_get_list(PurpleConnection *gc)
 
 	purple_roomlist_set_in_progress(campfire->roomlist, TRUE);
 
-	campfire_room_query(campfire);
+	campfire_curl_room_query(campfire);
 	
 	purple_roomlist_set_in_progress(campfire->roomlist, FALSE);
 	//purple_roomlist_unref(campfire->roomlist);
