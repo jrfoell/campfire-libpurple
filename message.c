@@ -48,6 +48,7 @@ void campfire_message_send(CampfireMessage *cm)
 void campfire_room_query(CampfireConn *campfire)
 {
 	
+	PurpleRoomlistRoom *room;
 	gchar room_request[] =
 		"GET /rooms.xml HTTP/1.1\r\n"
 #if 0
@@ -61,6 +62,9 @@ void campfire_room_query(CampfireConn *campfire)
 
 	purple_ssl_write(campfire->gsc,room_request, strlen(room_request));
 	purple_debug_info("campfire", "HTTP request:\n%s\n", room_request);
+	room = purple_roomlist_room_new(PURPLE_ROOMLIST_ROOMTYPE_ROOM, "test1", NULL);
+	purple_roomlist_room_add_field(campfire->roomlist, room, "hahaha");
+	purple_roomlist_room_add(campfire->roomlist, room);
 	//@TODO do some curl/xml stuff here
 	//see
 	//protocols/jabber/chat.c:864 roomlist_ok_cb() AND
