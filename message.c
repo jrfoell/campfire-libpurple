@@ -72,8 +72,11 @@ void campfire_room_query(CampfireConn *campfire)
 	//protocols/jabber/chat.c:800 roomlist_disco_result_cb()
 }
 
-CURL *get_curl()
+CURL *get_curl(CampfireConn *conn)
 {
+	const char *api_token = purple_account_get_string(conn->account,
+			"api_token", "");
+	
 	static CURL *curl;
 
 	if(!curl)
@@ -81,10 +84,19 @@ CURL *get_curl()
 		curl_global_init(CURL_GLOBAL_ALL);
 		curl = curl_easy_init();
 		curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
-		curl_easy_setopt(curl, CURLOPT_USERPWD, "3584517e7e1ba97313771b5fac86f7a4d34841bc:X");
+		curl_easy_setopt(curl, CURLOPT_USERPWD, api_token);
 	}
 	
 	return curl;	
+}
+
+gchar *campfire_get_url(CampfireConn *conn)
+{
+	GString *url = g_string_new("https://");
+												
+	g_string_append(url, conn->hostname);
+	purple_debug_info("campfire", "Connect base url: %s\n", url->str);
+	return g_string_free(url, FALSE);
 }
 
 gsize campfire_curl_write_callback(void *ptr, gsize size, gsize nmemb, void *data)
@@ -107,16 +119,21 @@ gsize campfire_curl_write_callback(void *ptr, gsize size, gsize nmemb, void *dat
   return realsize;
 }
 
-xmlnode *campfire_curl_request(gchar *url, gchar *post)
+xmlnode *campfire_curl_request(CampfireConn *conn, gchar *uri, gchar *post)
 {
-	CURL *curl = get_curl();
 	CURLcode res;
-	
-	curl_easy_setopt(curl, CURLOPT_URL, "https://ingroup.campfirenow.com/rooms.xml");
+	CURL *curl = get_curl(conn);
+	GString *url = g_string_new(campfire_get_url(conn));
+	g_string_append(url, uri);
+		
+	purple_debug_info("campfire", "Connect full url: %s\n", url->str);
+	curl_easy_setopt(curl, CURLOPT_URL, url->str);
+	g_string_free(url, TRUE);
 	
 	if(post)
 	{
-	    //curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "name=daniel&project=curl");
+		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, "Content-Type: application/xml");
+	    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post);
 	}
 	else //get
 	{		
@@ -129,7 +146,7 @@ xmlnode *campfire_curl_request(gchar *url, gchar *post)
 		
 		res = curl_easy_perform(curl);
 
-		printf("%lu bytes retrieved\n", (long)raw.size);
+		purple_debug_info("campfire", "%lu bytes retrieved\n", (long)raw.size);
 
 		if(raw.message)
 		{
@@ -147,8 +164,8 @@ xmlnode *campfire_curl_request(gchar *url, gchar *post)
 	return NULL;
 }
 
-void campfire_curl_room_query(CampfireConn *campfire)
+void campfire_curl_room_query(CampfireConn *conn)
 {
-	campfire_curl_request(NULL, NULL);
+	campfire_curl_request(conn, "/rooms.xml", NULL);
 }
 

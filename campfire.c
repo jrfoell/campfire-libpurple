@@ -32,14 +32,16 @@ static void campfire_recv_callback(gpointer data, PurpleSslConnection *gsc,
 	static gchar buf[2048];
 	int len;
 
-	while ((len = purple_ssl_read(gsc, buf, sizeof(buf) - 1)) > 0) {
+	while ((len = purple_ssl_read(gsc, buf, sizeof(buf) - 1)) > 0)
+	{
 		buf[len] = '\0';
 		purple_debug_info("campfire",
 		                  "HTTP input: %d bytes:\n%s\n",
 		                  len, buf);
 	}
 
-	if (len == 0) {
+	if (len == 0)
+	{
 		purple_connection_error_reason(gc, 
 		                               PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
 		                               "Server closed the connection");
@@ -70,11 +72,18 @@ static void campfire_login(PurpleAccount *account)
 {
 	//don't really login (it's stateless), but init the CampfireConn
 	PurpleConnection *gc = purple_account_get_connection(account);
+	const char *username = purple_account_get_username(account);
 	CampfireConn *campfire;
+	char **userparts;
 
 	campfire = gc->proto_data = g_new0(CampfireConn, 1);
 	campfire->gc = gc;
 	campfire->account = account;
+	
+	userparts = g_strsplit(username, "@", 2);
+	purple_connection_set_display_name(gc, userparts[0]);
+	campfire->hostname = g_strdup(userparts[1]);
+	g_strfreev(userparts);	
 	
 	campfire->gsc = purple_ssl_connect(account,
 	                                   purple_account_get_string(account, "hostname", "ingroup.campfirenow.com"), 
@@ -107,6 +116,7 @@ static void campfire_set_status(PurpleAccount *acct, PurpleStatus *status)
 {
 }
 
+/*
 static GHashTable * campfire_get_account_text_table(PurpleAccount *account)
 {
 	GHashTable *table;
@@ -114,6 +124,7 @@ static GHashTable * campfire_get_account_text_table(PurpleAccount *account)
 	g_hash_table_insert(table, "login_label", (gpointer)_("API token"));
 	return table;
 }
+*/
 
 static GList * campfire_statuses(PurpleAccount *acct)
 {
@@ -275,7 +286,7 @@ static PurplePluginProtocolInfo campfire_protocol_info = {
 	NULL,                   /* send_attention */
 	NULL,                   /* attention_types */
 	sizeof(PurplePluginProtocolInfo), /* struct_size */
-	campfire_get_account_text_table /* get_account_text_table */	
+	NULL, //campfire_get_account_text_table /* get_account_text_table */	
 };
 
 static PurplePluginInfo info = {
@@ -309,9 +320,13 @@ static PurplePluginInfo info = {
 
 static void plugin_init(PurplePlugin *plugin)
 {
+	PurpleAccountUserSplit *split;
 	PurpleAccountOption *option;
-	
-	option = purple_account_option_string_new(_("Hostname"), "hostname", "");
+
+	split = purple_account_user_split_new(_("Hostname"), NULL, '@');
+	campfire_protocol_info.user_splits = g_list_append(campfire_protocol_info.user_splits, split);
+
+	option = purple_account_option_string_new(_("API token"), "api_token", NULL);
 	campfire_protocol_info.protocol_options = g_list_append(campfire_protocol_info.protocol_options, option);
 }
 

@@ -21,7 +21,7 @@ typedef struct _CampfireConn {
 	PurpleRoomlist *roomlist;	
 	PurpleConnection *gc;
 	PurpleSslConnection *gsc;
-	gint fd;
+	gchar *hostname;
 } CampfireConn;
 
 
