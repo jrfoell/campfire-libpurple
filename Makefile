@@ -3,27 +3,34 @@ LIBNAME=libcampfire.so
 
 all: $(LIBNAME)
  
-
 C_SRCS:= campfire.c \
   message.c
 
 # Object file names using 'Substitution Reference'
 C_OBJS:=$(C_SRCS:.c=.o)
 
-PURPLE_LIBS = $(shell pkg-config --libs purple)
+PURPLE_LIBS:=$(shell pkg-config --libs purple)
 CC:=gcc
 LD:=$(CC)
 CFLAGS=-DPURPLE_PLUGINS -DPIC -DENABLE_NLS
 CFLAGS+=$(shell pkg-config --cflags purple)
 #CFLAGS+=$(shell pkg-config --cflags pidgin)
 CFLAGS+=-Wall -fPIC
-LDFLAGS=-shared -lcurl -Wl,-Bsymbolic-functions
+LDFLAGS=-shared
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) -o $@ $<
 
 $(LIBNAME): $(C_OBJS)
 	$(LD) $(LDFLAGS) -o $@ $^ $(PURPLE_LIBS)
+
+.PHONY: testers
+
+testers: \
+    tester_roomparse
+
+tester_roomparse:  xmlnode_roomlist_parse.c
+	$(CC) -o $@ $^
 
 PIDGIN:=$(shell which pidgin)
 PIDGIN_BIN_DIR:=$(strip $(shell dirname $(PIDGIN)))
@@ -47,3 +54,4 @@ uninstall: $(LIBNAME)
 clean:
 	-rm *.o
 	-rm $(LIBNAME)
+	-rm tester_roomparse
