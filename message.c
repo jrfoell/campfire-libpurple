@@ -60,6 +60,7 @@ void campfire_ssl_failure(PurpleSslConnection *gsc, PurpleSslErrorType error, gp
 void campfire_renew_connection(CampfireConn *conn, void *callback)
 {
 	if(!conn->gsc) {
+		purple_debug_info("campfire", "Renewing connnection\n");
 		conn->gsc = purple_ssl_connect(conn->account,
 									   conn->hostname,
 									   443,
@@ -67,14 +68,15 @@ void campfire_renew_connection(CampfireConn *conn, void *callback)
 									   campfire_ssl_failure,
 									   conn->gc);
 
+	} else {
+		purple_debug_info("campfire", "connnection is still open\n");
 	}
 
 	if(!conn->gsc) {
 		purple_connection_error_reason(conn->gc,
 		                               PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
 		                               _("Unable to connect"));
-	}
-	
+	}	
 }
 
 void campfire_http_request(CampfireConn *conn, gchar *uri, gchar *post)
@@ -126,6 +128,7 @@ void campfire_http_response(gpointer data, PurpleSslConnection *gsc,
 		                               PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
 		                               "Server closed the connection");
 	}
+	purple_ssl_close(gsc);
 }
 
 void campfire_room_query_callback(gpointer data, PurpleSslConnection *gsc,

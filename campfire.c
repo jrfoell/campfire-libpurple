@@ -28,9 +28,7 @@ gboolean plugin_unload(PurplePlugin *plugin)
 static void campfire_login_callback(gpointer data, PurpleSslConnection *gsc, PurpleInputCondition cond)
 {
 	PurpleConnection *gc = data;	
-	CampfireConn *campfire = gc->proto_data;
-	campfire->gsc = gsc;
-	
+	purple_ssl_close(gsc);
 	purple_connection_set_state(gc, PURPLE_CONNECTED);
 }
 
