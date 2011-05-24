@@ -12,10 +12,14 @@ C_OBJS:=$(C_SRCS:.c=.o)
 PURPLE_LIBS:=$(shell pkg-config --libs purple)
 CC:=gcc
 LD:=$(CC)
-CFLAGS=-DPURPLE_PLUGINS -DPIC -DENABLE_NLS
-CFLAGS+=$(shell pkg-config --cflags purple)
-#CFLAGS+=$(shell pkg-config --cflags pidgin)
-CFLAGS+=-Wall -fPIC
+CFLAGS_PURPLE:=$(shell pkg-config --cflags purple)
+CFLAGS:= \
+    -Wall \
+    -fPIC \
+    -DPURPLE_PLUGINS \
+    -DPIC -DENABLE_NLS \
+    $(CFLAGS_PURPLE)
+
 LDFLAGS=-shared
 
 %.o: %.c
@@ -30,7 +34,7 @@ testers: \
     tester_roomparse
 
 tester_roomparse:  xmlnode_roomlist_parse.c
-	$(CC) -o $@ $^
+	$(CC) $(CFLAGS_PURPLE) -o $@ $^ $(PURPLE_LIBS)
 
 PIDGIN:=$(shell which pidgin)
 PIDGIN_BIN_DIR:=$(strip $(shell dirname $(PIDGIN)))
@@ -48,6 +52,8 @@ install: $(LIBNAME)
 uninstall: $(LIBNAME)
 	rm $(PIDGIN_PLUGIN_DIR)/$(LIBNAME)
 	rm $(PREFIX)/share/pixmaps/pidgin/protocols/16/campfire.png
+	rm $(PREFIX)/share/pixmaps/pidgin/protocols/22/campfire.png
+	rm $(PREFIX)/share/pixmaps/pidgin/protocols/48/campfire.png
 	
 .PHONY: clean
 
