@@ -25,29 +25,6 @@ gboolean plugin_unload(PurplePlugin *plugin)
 	return TRUE;
 }
 
-static void campfire_recv_callback(gpointer data, PurpleSslConnection *gsc,
-                                    PurpleInputCondition cond)
-{
-	PurpleConnection *gc = data;
-	static gchar buf[2048];
-	int len;
-
-	while ((len = purple_ssl_read(gsc, buf, sizeof(buf) - 1)) > 0)
-	{
-		buf[len] = '\0';
-		purple_debug_info("campfire",
-		                  "HTTP input: %d bytes:\n%s\n",
-		                  len, buf);
-	}
-
-	if (len == 0)
-	{
-		purple_connection_error_reason(gc, 
-		                               PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
-		                               "Server closed the connection");
-	}
-}
-
 static void campfire_login_callback(gpointer data, PurpleSslConnection *gsc, PurpleInputCondition cond)
 {
 	PurpleConnection *gc = data;	
@@ -55,17 +32,6 @@ static void campfire_login_callback(gpointer data, PurpleSslConnection *gsc, Pur
 	campfire->gsc = gsc;
 	
 	purple_connection_set_state(gc, PURPLE_CONNECTED);
-	purple_ssl_input_add(gsc, campfire_recv_callback, gc);
-}
-
-static void campfire_ssl_failure(PurpleSslConnection *gsc, PurpleSslErrorType error, gpointer data)
-{
-	PurpleConnection *gc = data;
-	CampfireConn *campfire = gc->proto_data;
-
-	campfire->gsc = NULL;
-
-	purple_connection_ssl_error (gc, error);
 }
 
 static void campfire_login(PurpleAccount *account)
@@ -73,30 +39,19 @@ static void campfire_login(PurpleAccount *account)
 	//don't really login (it's stateless), but init the CampfireConn
 	PurpleConnection *gc = purple_account_get_connection(account);
 	const char *username = purple_account_get_username(account);
-	CampfireConn *campfire;
+	CampfireConn *conn;
 	char **userparts;
 
-	campfire = gc->proto_data = g_new0(CampfireConn, 1);
-	campfire->gc = gc;
-	campfire->account = account;
+	conn = gc->proto_data = g_new0(CampfireConn, 1);
+	conn->gc = gc;
+	conn->account = account;
 	
 	userparts = g_strsplit(username, "@", 2);
 	purple_connection_set_display_name(gc, userparts[0]);
-	campfire->hostname = g_strdup(userparts[1]);
+	conn->hostname = g_strdup(userparts[1]);
 	g_strfreev(userparts);	
-	
-	campfire->gsc = purple_ssl_connect(account,
-	                                   purple_account_get_string(account, "hostname", "ingroup.campfirenow.com"), 
-	                                   443,
-					   campfire_login_callback,
-					   campfire_ssl_failure,
-	                                   gc);
 
-	if(!campfire->gsc) {
-		purple_connection_error_reason(gc,
-		                               PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
-		                               _("Unable to connect"));
-	}
+	campfire_renew_connection(conn, campfire_login_callback);
 }
 
 static void campfire_close(PurpleConnection *gc)
@@ -178,7 +133,7 @@ PurpleRoomlist *campfire_roomlist_get_list(PurpleConnection *gc)
 
 	purple_roomlist_set_in_progress(campfire->roomlist, TRUE);
 
-	campfire_curl_room_query(campfire);
+	campfire_room_query(campfire);
 	
 	purple_roomlist_set_in_progress(campfire->roomlist, FALSE);
 	//purple_roomlist_unref(campfire->roomlist);

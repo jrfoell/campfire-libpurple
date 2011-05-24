@@ -31,6 +31,7 @@ typedef struct _CampfireRawMessage {
 } CampfireRawMessage;
 
 
+void campfire_renew_connection(CampfireConn *conn, void *callback);
 void campfire_message_send(CampfireMessage *cm);
 void campfire_room_query(CampfireConn *campfire);
 void campfire_curl_room_query(CampfireConn *campfire);
