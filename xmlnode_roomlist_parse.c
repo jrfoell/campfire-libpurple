@@ -37,6 +37,7 @@ int main(int argc, char **argv)
          * or similar
          * I've tried using a string instead of a mmap'ed file
          * I've tried using a short xml string like "<node/>"
+         * I've tried using 'xmlnode_from_file()'
          */
 	node = xmlnode_from_str((char *)mem, size);
 
