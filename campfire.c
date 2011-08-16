@@ -110,14 +110,23 @@ GList *campfire_chat_info(PurpleConnection *gc)
 	return m;
 }
 
+void campfire_join_chat(PurpleConnection *gc, GHashTable *components)
+{
+	purple_debug_info("campfire", "tried to JOIN CHAT\n");
+}
+
 PurpleRoomlist *campfire_roomlist_get_list(PurpleConnection *gc)
 {	
 	CampfireConn *campfire = gc->proto_data;
 	GList *fields = NULL;
 	PurpleRoomlistField *f;
 
+	purple_debug_info("campfire", "initiating ROOMLIST GET LIST\n");
+
 	if (campfire->roomlist)
+	{
 		purple_roomlist_unref(campfire->roomlist);
+	}
 	
 	campfire->roomlist = purple_roomlist_new(purple_connection_get_account(gc));
 
@@ -133,7 +142,7 @@ PurpleRoomlist *campfire_roomlist_get_list(PurpleConnection *gc)
 
 	campfire_room_query(campfire);
 	
-	purple_roomlist_set_in_progress(campfire->roomlist, FALSE);
+	/*purple_roomlist_set_in_progress(campfire->roomlist, FALSE);*/
 	//purple_roomlist_unref(campfire->roomlist);
 	//campfire->roomlist = NULL;
 
@@ -203,7 +212,7 @@ static PurplePluginProtocolInfo campfire_protocol_info = {
 	NULL,                   /* rem_permit */
 	NULL,                   /* rem_deny */
 	NULL,                   /* set_permit_deny */
-	NULL,                   /* join_chat */
+	campfire_join_chat,     /* join_chat */
 	NULL,                   /* reject chat invite */
 	NULL,                   /* get_chat_name */
 	NULL,                   /* chat_invite */

@@ -1,6 +1,7 @@
 //system includes
 #include <string.h>
 #include <glib/gi18n.h>
+#include <errno.h>
 
 //purple includes
 #include <xmlnode.h>
@@ -107,61 +108,82 @@ void campfire_http_request(CampfireConn *conn, gchar *uri, gchar *post)
 }
 
 xmlnode *campfire_http_response(gpointer data, PurpleSslConnection *gsc,
-							PurpleInputCondition cond)
+                                PurpleInputCondition cond)
 {
-	PurpleConnection *gc = data;
-	static gchar buf[2048];
-	int len;
-
-	while ((len = purple_ssl_read(gsc, buf, sizeof(buf) - 1)) > 0)
-	{
-		buf[len] = '\0';
-		purple_debug_info("campfire",
-		                  "HTTP input: %d bytes:\n%s\n",
-		                  len, buf);
-	}
-
-	if (len == 0)
-	{
-		purple_debug_info("campfire", "DISCONNECTED YO\n");
-		purple_ssl_close(gsc);
-		//don't show this to the user, it's stateless
-		/*
-		purple_connection_error_reason(gc, 
-		                               PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
-		                               "Server closed the connection");
-		*/
-		return NULL;
-	}
-
-	//look for the content
+	/*PurpleConnection *gc = data;*/
+	GString *response = g_string_new("");
+	static gchar buf[1024];
 	gchar *blank_line = "\r\n\r\n";
-	gchar *content = g_strstr_len(buf, len, blank_line);
-
-	purple_debug_info("campfire", "content: %s", content);
-
-	if(content == NULL)
-	{
-		purple_debug_info("campfire", "no content found");
-		return NULL;
-	}
-
 	gchar *xml_header = "<?xml";
-	gchar *rawxml = g_strstr_len(content, strlen(content), xml_header);
+	gchar *content, *rawxml, *node_str;
+	xmlnode *node;
+	gint len = 0;
+	gint done_reading = 0;
 
-	if(rawxml == NULL)
-	{
-		purple_debug_info("campfire", "no xml found");
+	/* We need a while loop here if/when the response is larger
+	 * than our 'static gchar buf'
+	 * NOTE: jabber is using a while loop here and parsing chunks of
+	 *       xml each loop with libxml call xmlParseChunk()
+	 */
+	while (!done_reading) {
+		gint num_bytes;
+
+		errno = 0;
+		num_bytes = purple_ssl_read(gsc, buf, sizeof(buf));
+		if (num_bytes < 0 && len == 0 && errno == EAGAIN) {
+			purple_debug_info("campfire", "TRY AGAIN...\n");
+			return NULL;
+		} else if (num_bytes < 0 && errno != EAGAIN) {
+			purple_debug_info("campfire", "LOST CONNECTION\n");
+			purple_debug_info("campfire", "errno: %d\n", errno);
+			purple_ssl_close(gsc);
+			return NULL;
+		} else if (num_bytes == 0 && len == 0) {
+			purple_debug_info("campfire", "DISCONNECTED YO\n");
+			purple_ssl_close(gsc);
+			return NULL;
+		} else if (num_bytes < 0) {
+			purple_debug_info("campfire", "GOT RESPONSE\n");
+			response = g_string_append_c(response, '\0');
+			done_reading = 1;
+		} else {
+			purple_debug_info("campfire",
+			                  "read %d bytes from HTTP Response\n",
+			                  num_bytes);
+			len += num_bytes;
+			response = g_string_append_len(response, buf, num_bytes);
+		}
+	}
+
+	/* only continue here when len > 0
+	 */
+	purple_debug_info("campfire", "HTTP input: %d bytes:\n", len);
+
+	/*look for the content
+	 */
+	content = g_strstr_len(response->str, len, blank_line);
+
+	purple_debug_info("campfire", "content: %s\n", content);
+
+	if(content == NULL) {
+		purple_debug_info("campfire", "no content found\n");
 		return NULL;
 	}
 
-	purple_debug_info("campfire", "raw xml: %s", rawxml);
-	
-	xmlnode *node = xmlnode_from_str(rawxml, -1);
-	gint xmllen;
-	gchar *str = xmlnode_to_str(node, &xmllen);
-	purple_debug_info("campfire", "xml: %s", str);
-	g_free(str);
+	rawxml = g_strstr_len(content, strlen(content), xml_header);
+
+	if(rawxml == NULL) {
+		purple_debug_info("campfire", "no xml found\n");
+		return NULL;
+	}
+
+	purple_debug_info("campfire", "raw xml: %s\n", rawxml);
+
+	node = xmlnode_from_str(rawxml, -1);
+	node_str = xmlnode_to_str(node, NULL);
+	purple_debug_info("campfire", "xml: %s\n", node_str);
+	g_free(node_str);
+	g_string_free(response, TRUE);
 	return node;
 }
 
@@ -180,7 +202,8 @@ void campfire_room_query_callback(gpointer data, PurpleSslConnection *gsc,
 
 	if((xmlrooms = campfire_http_response(gc, gsc, cond)) != NULL)
 	{
-		if((xmlroom = xmlnode_get_child(xmlrooms, "room")) != NULL)
+		xmlroom = xmlnode_get_child(xmlrooms, "room");
+		while (xmlroom != NULL)
 		{
 			xmlnode *xmlname = xmlnode_get_child(xmlroom, "name");
 			gchar *name = xmlnode_get_data(xmlname);
@@ -191,26 +214,15 @@ void campfire_room_query_callback(gpointer data, PurpleSslConnection *gsc,
 			PurpleRoomlistRoom *room = purple_roomlist_room_new(PURPLE_ROOMLIST_ROOMTYPE_ROOM, name, NULL);
 			purple_roomlist_room_add_field(conn->roomlist, room, topic);
 			purple_roomlist_room_add(conn->roomlist, room);
-	
-			while((xmlroom = xmlnode_get_next_twin(xmlroom)) != NULL)
-			{
-				xmlname = xmlnode_get_child(xmlroom, "name");
-				name = xmlnode_get_data(xmlname);
-				xmltopic = xmlnode_get_child(xmlroom, "topic");
-				topic = xmlnode_get_data(xmltopic);
-
-	
-				PurpleRoomlistRoom *room = purple_roomlist_room_new(PURPLE_ROOMLIST_ROOMTYPE_ROOM, name, NULL);
-				purple_roomlist_room_add_field(conn->roomlist, room, topic);
-				purple_roomlist_room_add(conn->roomlist, room);
-			}
+			xmlroom = xmlnode_get_next_twin(xmlroom);
 		}
 	}		   
+	purple_roomlist_set_in_progress(conn->roomlist, FALSE);
 }
 
 void campfire_room_query(CampfireConn *conn)
 {
 	campfire_http_request(conn, "/rooms.xml", NULL);
-
 	purple_ssl_input_add(conn->gsc, campfire_room_query_callback, conn->gc);
 }
+
