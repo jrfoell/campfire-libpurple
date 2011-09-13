@@ -209,10 +209,13 @@ void campfire_room_query_callback(gpointer data, PurpleSslConnection *gsc,
 			gchar *name = xmlnode_get_data(xmlname);
 			xmlnode *xmltopic = xmlnode_get_child(xmlroom, "topic");
 			gchar *topic = xmlnode_get_data(xmltopic);
+			xmlnode *xmlid = xmlnode_get_child(xmlroom, "id");
+			gchar *id = xmlnode_get_data(xmlid);
 
 	
 			PurpleRoomlistRoom *room = purple_roomlist_room_new(PURPLE_ROOMLIST_ROOMTYPE_ROOM, name, NULL);
 			purple_roomlist_room_add_field(conn->roomlist, room, topic);
+			purple_roomlist_room_add_field(conn->roomlist, room, id);
 			purple_roomlist_room_add(conn->roomlist, room);
 			xmlroom = xmlnode_get_next_twin(xmlroom);
 		}
@@ -224,5 +227,22 @@ void campfire_room_query(CampfireConn *conn)
 {
 	campfire_http_request(conn, "/rooms.xml", NULL);
 	purple_ssl_input_add(conn->gsc, campfire_room_query_callback, conn->gc);
+}
+
+void campfire_room_join_callback(gpointer data, PurpleSslConnection *gsc,
+                                    PurpleInputCondition cond)
+{
+}
+
+void campfire_room_join(CampfireConn *conn, char *room_id)
+{
+	GString *uri = g_string_new("/room/#");
+	g_string_append(uri, room_id);
+	g_string_append(uri, "/join.xml");
+
+
+	campfire_http_request(conn, uri->str, NULL);
+	purple_ssl_input_add(conn->gsc, campfire_room_join_callback, conn->gc);	
+	g_string_free(uri, TRUE);
 }
 

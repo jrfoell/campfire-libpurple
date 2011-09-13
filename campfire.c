@@ -110,9 +110,16 @@ GList *campfire_chat_info(PurpleConnection *gc)
 	return m;
 }
 
-void campfire_join_chat(PurpleConnection *gc, GHashTable *components)
+void campfire_join_chat(PurpleConnection *gc, GHashTable *data)
 {
-	purple_debug_info("campfire", "tried to JOIN CHAT\n");
+	CampfireConn *campfire = gc->proto_data;
+	char *id;
+	
+	id = g_hash_table_lookup(data, "id");
+
+	purple_debug_info("campfire", "trying to JOIN CHAT room id %s\n", id);
+	
+	campfire_room_join(campfire, id);
 }
 
 PurpleRoomlist *campfire_roomlist_get_list(PurpleConnection *gc)
@@ -136,6 +143,9 @@ PurpleRoomlist *campfire_roomlist_get_list(PurpleConnection *gc)
 	f = purple_roomlist_field_new(PURPLE_ROOMLIST_FIELD_STRING, _("Topic"), "topic", FALSE);
 	fields = g_list_append(fields, f);
 
+	f = purple_roomlist_field_new(PURPLE_ROOMLIST_FIELD_STRING, "", "id", TRUE);
+	fields = g_list_append(fields, f);
+	
 	purple_roomlist_set_fields(campfire->roomlist, fields);
 
 	purple_roomlist_set_in_progress(campfire->roomlist, TRUE);
