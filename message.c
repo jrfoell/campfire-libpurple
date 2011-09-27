@@ -79,15 +79,19 @@ void campfire_renew_connection(CampfireConn *conn, void *callback)
 	}	
 }
 
-void campfire_http_request(CampfireConn *conn, gchar *uri, gchar *post)
+void campfire_http_request(CampfireConn *conn, gchar *uri, gchar *method)
 {
 	const char *api_token = purple_account_get_string(conn->account,
 			"api_token", "");
 
-	GString *request = g_string_new("GET ");
+	GString *request = g_string_new(method);
+	g_string_append(request, " ");
 	g_string_append(request, uri);
 	g_string_append(request, " HTTP/1.1\r\n");
+	//g_string_append(request, "\r\n");
 
+	g_string_append(request, "Content-Type: application/xml\r\n");
+	
 	g_string_append(request, "Authorization: Basic ");
 	gsize auth_len = strlen(api_token);
 	gchar *encoded = purple_base64_encode((const guchar *)api_token, auth_len);
@@ -158,6 +162,7 @@ xmlnode *campfire_http_response(gpointer data, PurpleSslConnection *gsc,
 	/* only continue here when len > 0
 	 */
 	purple_debug_info("campfire", "HTTP input: %d bytes:\n", len);
+	purple_debug_info("campfire", "HTTP response: %s\n", response->str);
 
 	/*look for the content
 	 */
@@ -200,6 +205,9 @@ void campfire_room_query_callback(gpointer data, PurpleSslConnection *gsc,
 	xmlnode *xmlrooms = NULL;
 	xmlnode *xmlroom = NULL;
 
+	//if (conn->roomlist)
+	//	purple_roomlist_unref(conn->roomlist);
+
 	if((xmlrooms = campfire_http_response(gc, gsc, cond)) != NULL)
 	{
 		xmlroom = xmlnode_get_child(xmlrooms, "room");
@@ -225,7 +233,7 @@ void campfire_room_query_callback(gpointer data, PurpleSslConnection *gsc,
 
 void campfire_room_query(CampfireConn *conn)
 {
-	campfire_http_request(conn, "/rooms.xml", NULL);
+	campfire_http_request(conn, "/rooms.xml", "GET");
 	purple_ssl_input_add(conn->gsc, campfire_room_query_callback, conn->gc);
 }
 
@@ -244,7 +252,7 @@ void campfire_room_join(CampfireConn *conn, char *room_id, char *room_name)
 	g_string_append(uri, "/join.xml");
 
 
-	campfire_http_request(conn, uri->str, NULL);
+	campfire_http_request(conn, uri->str, "POST");
 	purple_ssl_input_add(conn->gsc, campfire_room_join_callback, conn->gc);	
 	g_string_free(uri, TRUE);
 }
