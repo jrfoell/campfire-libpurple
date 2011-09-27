@@ -122,6 +122,11 @@ void campfire_join_chat(PurpleConnection *gc, GHashTable *data)
 	campfire_room_join(campfire, id);
 }
 
+char *campfire_get_chat_name(GHashTable *data) {
+	return g_strdup(g_hash_table_lookup(data, "room"));
+}
+
+
 PurpleRoomlist *campfire_roomlist_get_list(PurpleConnection *gc)
 {	
 	CampfireConn *campfire = gc->proto_data;
@@ -224,7 +229,7 @@ static PurplePluginProtocolInfo campfire_protocol_info = {
 	NULL,                   /* set_permit_deny */
 	campfire_join_chat,     /* join_chat */
 	NULL,                   /* reject chat invite */
-	NULL,                   /* get_chat_name */
+	campfire_get_chat_name, /* get_chat_name */
 	NULL,                   /* chat_invite */
 	NULL,                   /* chat_leave */
 	NULL,                   /* chat_whisper */
