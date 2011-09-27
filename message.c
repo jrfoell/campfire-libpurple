@@ -88,7 +88,6 @@ void campfire_http_request(CampfireConn *conn, gchar *uri, gchar *method)
 	g_string_append(request, " ");
 	g_string_append(request, uri);
 	g_string_append(request, " HTTP/1.1\r\n");
-	//g_string_append(request, "\r\n");
 
 	g_string_append(request, "Content-Type: application/xml\r\n");
 	
@@ -118,6 +117,7 @@ gint campfire_http_response(gpointer data, PurpleSslConnection *gsc,
 	GString *response = g_string_new("");
 	static gchar buf[1024];
 	gchar *blank_line = "\r\n\r\n";
+	gchar *status_header = "\r\nStatus: ";
 	gchar *xml_header = "<?xml";
 	gchar *content, *rawxml, *node_str;
 	xmlnode *tmpnode;
@@ -168,12 +168,22 @@ gint campfire_http_response(gpointer data, PurpleSslConnection *gsc,
 		}
 	}
 
-	/* only continue here when len > 0
+	/*
+	 * only continue here when len > 0
 	 */
 	purple_debug_info("campfire", "HTTP input: %d bytes:\n", len);
 	purple_debug_info("campfire", "HTTP response: %s\n", response->str);
 
-	/*look for the content
+	/*
+	 *look for the status
+	 */
+	gchar *status_and_after = g_strstr_len(response->str, len, status_header);
+	gchar *status = g_malloc0(4); //status is 3-digits plus NULL
+	g_strlcpy (status, &status_and_after[strlen(status_header)], 4);
+	purple_debug_info("campfire", "HTTP status: %s\n", status);
+	
+	/*
+	 *look for the content
 	 */
 	content = g_strstr_len(response->str, len, blank_line);
 
@@ -191,10 +201,14 @@ gint campfire_http_response(gpointer data, PurpleSslConnection *gsc,
 	rawxml = g_strstr_len(content, strlen(content), xml_header);
 
 	if(rawxml == NULL) {
-		purple_debug_info("campfire", "no xml found\n");
 		if (node) {
 			*node = NULL;
 		}
+		if( g_strcmp0( status, "200" ) == 0 ) {
+			purple_debug_info("campfire", "no xml found, status OK\n");
+			return CAMPFIRE_HTTP_RESPONSE_STATUS_OK_NO_XML;
+		}
+		purple_debug_info("campfire", "no xml found\n");
 		return CAMPFIRE_HTTP_RESPONSE_STATUS_NO_XML;
 	}
 
@@ -260,14 +274,14 @@ void campfire_room_join_callback(gpointer data, PurpleSslConnection *gsc,
                                     PurpleInputCondition cond)
 {
 	PurpleConnection *gc = (PurpleConnection *)data;
-	if (campfire_http_response(gc, gsc, cond, NULL) == CAMPFIRE_HTTP_RESPONSE_STATUS_NO_CONTENT) {
+	if (campfire_http_response(gc, gsc, cond, NULL) == CAMPFIRE_HTTP_RESPONSE_STATUS_OK_NO_XML) {
 		purple_conversation_new(PURPLE_CONV_TYPE_CHAT, purple_connection_get_account(gc), "bob");
 	}
 }
 
 void campfire_room_join(CampfireConn *conn, char *room_id, char *room_name)
 {
-	GString *uri = g_string_new("/room/#");
+	GString *uri = g_string_new("/room/");
 	g_string_append(uri, room_id);
 	g_string_append(uri, "/join.xml");
 
