@@ -113,15 +113,13 @@ GList *campfire_chat_info(PurpleConnection *gc)
 void campfire_join_chat(PurpleConnection *gc, GHashTable *data)
 {
 	CampfireConn *campfire = gc->proto_data;
-	char *id;
-	char *room_name;
 	
-	id = g_hash_table_lookup(data, "id");
-	room_name = g_hash_table_lookup(data, "name");
+	campfire->room_id = g_hash_table_lookup(data, "id");
+	campfire->room_name = g_hash_table_lookup(data, "name");
 
-	purple_debug_info("campfire", "trying to JOIN CHAT room id %s\n", id);
+	purple_debug_info("campfire", "trying to JOIN CHAT room id %s\n", campfire->room_id);
 	
-	campfire_room_join(campfire, id, room_name);
+	campfire_room_join(campfire);
 }
 
 char *campfire_get_chat_name(GHashTable *data) {

@@ -31,6 +31,8 @@ typedef struct _CampfireConn {
 	PurpleConnection *gc;
 	PurpleSslConnection *gsc;
 	gchar *hostname;
+	gchar *room_id;
+	gchar *room_name;
 } CampfireConn;
 
 
@@ -43,7 +45,7 @@ typedef struct _CampfireRawMessage {
 void campfire_renew_connection(CampfireConn *conn, void *callback);
 void campfire_message_send(CampfireMessage *cm);
 void campfire_room_query(CampfireConn *campfire);
-void campfire_room_join(CampfireConn *campfire, char *id, char *room);
+void campfire_room_join(CampfireConn *campfire);
 void campfire_curl_room_query(CampfireConn *campfire);
 
 #endif /* not MESSAGE_H */

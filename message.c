@@ -273,21 +273,21 @@ void campfire_room_query(CampfireConn *conn)
 void campfire_room_join_callback(gpointer data, PurpleSslConnection *gsc,
                                     PurpleInputCondition cond)
 {
-	PurpleConnection *gc = (PurpleConnection *)data;
-	if (campfire_http_response(gc, gsc, cond, NULL) == CAMPFIRE_HTTP_RESPONSE_STATUS_OK_NO_XML) {
-		purple_conversation_new(PURPLE_CONV_TYPE_CHAT, purple_connection_get_account(gc), "bob");
+	CampfireConn *conn = (CampfireConn *)data;
+	if (campfire_http_response(conn->gc, gsc, cond, NULL) == CAMPFIRE_HTTP_RESPONSE_STATUS_OK_NO_XML) {
+		purple_conversation_new(PURPLE_CONV_TYPE_CHAT, purple_connection_get_account(conn->gc), conn->room_name);
 	}
 }
 
-void campfire_room_join(CampfireConn *conn, char *room_id, char *room_name)
+void campfire_room_join(CampfireConn *conn)
 {
 	GString *uri = g_string_new("/room/");
-	g_string_append(uri, room_id);
+	g_string_append(uri, conn->room_id);
 	g_string_append(uri, "/join.xml");
 
 
 	campfire_http_request(conn, uri->str, "POST");
-	purple_ssl_input_add(conn->gsc, campfire_room_join_callback, conn->gc);	
+	purple_ssl_input_add(conn->gsc, campfire_room_join_callback, conn);	
 	g_string_free(uri, TRUE);
 }
 
