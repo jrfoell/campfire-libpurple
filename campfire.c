@@ -27,9 +27,9 @@ gboolean plugin_unload(PurplePlugin *plugin)
 
 static void campfire_login_callback(gpointer data, PurpleSslConnection *gsc, PurpleInputCondition cond)
 {
-	PurpleConnection *gc = data;	
+	CampfireConn *conn = (CampfireConn *)data;	
 	//purple_ssl_close(gsc);
-	purple_connection_set_state(gc, PURPLE_CONNECTED);
+	purple_connection_set_state(conn->gc, PURPLE_CONNECTED);
 }
 
 static void campfire_login(PurpleAccount *account)
@@ -49,7 +49,7 @@ static void campfire_login(PurpleAccount *account)
 	conn->hostname = g_strdup(userparts[1]);
 	g_strfreev(userparts);	
 
-	campfire_renew_connection(conn, campfire_login_callback);
+	campfire_renew_connection(conn, campfire_login_callback, conn);
 }
 
 static void campfire_close(PurpleConnection *gc)
@@ -135,10 +135,13 @@ PurpleRoomlist *campfire_roomlist_get_list(PurpleConnection *gc)
 
 	purple_debug_info("campfire", "initiating ROOMLIST GET LIST\n");
 
-	if (campfire->roomlist)
-	{
-		purple_roomlist_unref(campfire->roomlist);
-	}
+	/*if (campfire->roomlist)*/
+	/*{*/
+		/*purple_roomlist_unref(campfire->roomlist);*/
+		/*if (campfire->roomlist->ref == 0) {*/
+			/*campfire->roomlist = NULL;*/
+		/*}*/
+	/*}*/
 	
 	campfire->roomlist = purple_roomlist_new(purple_connection_get_account(gc));
 

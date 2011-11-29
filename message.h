@@ -27,7 +27,7 @@ enum http_response_status {
 
 typedef struct _CampfireConn {
 	PurpleAccount *account;
-	PurpleRoomlist *roomlist;	
+	PurpleRoomlist *roomlist;
 	PurpleConnection *gc;
 	PurpleSslConnection *gsc;
 	gchar *hostname;
@@ -42,7 +42,8 @@ typedef struct _CampfireRawMessage {
 } CampfireRawMessage;
 
 
-void campfire_renew_connection(CampfireConn *conn, void *callback);
+void campfire_renew_connection(CampfireConn *conn, PurpleSslInputFunction cb,
+                               gpointer data);
 void campfire_message_send(CampfireMessage *cm);
 void campfire_room_query(CampfireConn *campfire);
 void campfire_room_join(CampfireConn *campfire);
