@@ -120,72 +120,66 @@ void campfire_http_request(CampfireConn *conn, gchar *uri, gchar *method,
 gint campfire_http_response(CampfireConn *conn, PurpleInputCondition cond,
                             xmlnode **node)
 {
-	GString *response = g_string_new("");
+	static GString *response = NULL;
 	static gchar buf[1024];
 	gchar *blank_line = "\r\n\r\n";
 	gchar *status_header = "\r\nStatus: ";
 	gchar *xml_header = "<?xml";
 	gchar *content, *rawxml, *node_str;
 	xmlnode *tmpnode;
-	gint len = 0;
-	gint done_reading = 0;
+	gint len;
+	static gint size_response = 0;
+
+	if (size_response == 0) {
+		if (response) {
+			g_string_free(response, TRUE);
+		}
+		response = g_string_new("");
+	}
 
 	/* We need a while loop here if/when the response is larger
 	 * than our 'static gchar buf'
 	 * NOTE: jabber is using a while loop here and parsing chunks of
 	 *       xml each loop with libxml call xmlParseChunk()
 	 */
-	while (!done_reading) {
-		gint num_bytes;
+	while ((len = purple_ssl_read(conn->gsc, buf, sizeof(buf))) > 0) {
+		purple_debug_info("campfire",
+		                  "read %d bytes from HTTP Response\n",
+		                  len);
+		response = g_string_append_len(response, buf, len);
+		size_response += len;
+	}
 
-		errno = 0;
-		num_bytes = purple_ssl_read(conn->gsc, buf, sizeof(buf));
-		if (num_bytes < 0 && len == 0 && errno == EAGAIN) {
-			purple_debug_info("campfire", "TRY AGAIN...\n");
-			if (node) {
-				*node = NULL;
-			}
+	if (len < 0) {
+		if (errno == EAGAIN) {
+			purple_debug_info("campfire", "TRY AGAIN\n");
 			return CAMPFIRE_HTTP_RESPONSE_STATUS_TRY_AGAIN;
-		} else if (num_bytes < 0 && errno != EAGAIN) {
+		} else {
 			purple_debug_info("campfire", "LOST CONNECTION\n");
 			purple_debug_info("campfire", "errno: %d\n", errno);
-			purple_ssl_close(conn->gsc);
-			conn->gsc = NULL;
+			/*purple_ssl_close(conn->gsc);*/
+			/*conn->gsc = NULL;*/
 			if (node) {
 				*node = NULL;
 			}
 			return CAMPFIRE_HTTP_RESPONSE_STATUS_LOST_CONNECTION;
-		} else if (num_bytes == 0 && len == 0) {
-			purple_debug_info("campfire", "DISCONNECTED YO\n");
-			purple_ssl_close(conn->gsc);
-			conn->gsc = NULL;
-			if (node) {
-				*node = NULL;
-			}
-			return CAMPFIRE_HTTP_RESPONSE_STATUS_DISCONNECTED;
-		} else if (num_bytes < 0) {
-			purple_debug_info("campfire", "GOT RESPONSE\n");
-			response = g_string_append_c(response, '\0');
-			done_reading = 1;
-		} else {
-			purple_debug_info("campfire",
-			                  "read %d bytes from HTTP Response\n",
-			                  num_bytes);
-			len += num_bytes;
-			response = g_string_append_len(response, buf, num_bytes);
 		}
 	}
 
+
 	/*
-	 * only continue here when len > 0
+	 * only continue here when len >= 0
+	 * below we parse the response and pull out the
+	 * xml we need
 	 */
-	purple_debug_info("campfire", "HTTP input: %d bytes:\n", len);
-	purple_debug_info("campfire", "HTTP response: %s\n", response->str);
+	g_string_append(response, "\n");
+	purple_debug_info("campfire", "HTTP response size: %d bytes\n", size_response);
+	purple_debug_info("campfire", "HTTP response string: %s\n", response->str);
 
 	/*
 	 *look for the status
 	 */
-	gchar *status_and_after = g_strstr_len(response->str, len, status_header);
+	gchar *status_and_after = g_strstr_len(response->str, size_response, status_header);
 	gchar *status = g_malloc0(4); //status is 3-digits plus NULL
 	g_strlcpy (status, &status_and_after[strlen(status_header)], 4);
 	purple_debug_info("campfire", "HTTP status: %s\n", status);
@@ -193,11 +187,12 @@ gint campfire_http_response(CampfireConn *conn, PurpleInputCondition cond,
 	/*
 	 *look for the content
 	 */
-	content = g_strstr_len(response->str, len, blank_line);
+	content = g_strstr_len(response->str, size_response, blank_line);
 
 	purple_debug_info("campfire", "HTTP response: %s\n", response->str);
 	purple_debug_info("campfire", "content: %s\n", content);
 
+	size_response = 0; /* reset */
 	if(content == NULL) {
 		purple_debug_info("campfire", "no content found\n");
 		if (node) {
@@ -227,6 +222,7 @@ gint campfire_http_response(CampfireConn *conn, PurpleInputCondition cond,
 	purple_debug_info("campfire", "xml: %s\n", node_str);
 	g_free(node_str);
 	g_string_free(response, TRUE);
+	response = NULL;
 	if (node) {
 		*node = tmpnode;
 	}
@@ -249,9 +245,7 @@ void campfire_room_query_callback(gpointer data, PurpleSslConnection *gsc,
 	//if (conn->roomlist)
 	//	purple_roomlist_unref(conn->roomlist);
 
-	do {
-		status = campfire_http_response(conn, cond, &xmlrooms);
-	} while (status == CAMPFIRE_HTTP_RESPONSE_STATUS_TRY_AGAIN);
+	status = campfire_http_response(conn, cond, &xmlrooms);
 
 	if(status == CAMPFIRE_HTTP_RESPONSE_STATUS_XML_OK)
 	{
