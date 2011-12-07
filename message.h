@@ -35,6 +35,13 @@ typedef struct _CampfireConn {
 	gchar *room_name;
 } CampfireConn;
 
+typedef struct _CampfireNewConnectionCrap {
+	PurpleSslInputFunction connect_cb;
+	gpointer connect_cb_data;
+	GString *http_request;
+	PurpleSslInputFunction response_cb;
+	gpointer response_cb_data;
+} CampfireNewConnectionCrap;
 
 typedef struct _CampfireRawMessage {
   gchar *message;
@@ -42,8 +49,7 @@ typedef struct _CampfireRawMessage {
 } CampfireRawMessage;
 
 
-void campfire_renew_connection(CampfireConn *conn, PurpleSslInputFunction cb,
-                               gpointer data);
+void campfire_renew_connection(CampfireConn *conn, CampfireNewConnectionCrap *crap);
 void campfire_message_send(CampfireMessage *cm);
 void campfire_room_query(CampfireConn *campfire);
 void campfire_room_join(CampfireConn *campfire);

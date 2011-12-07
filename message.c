@@ -49,20 +49,42 @@ void campfire_message_send(CampfireMessage *cm)
 
 void campfire_ssl_failure(PurpleSslConnection *gsc, PurpleSslErrorType error, gpointer data)
 {
-	CampfireConn *conn = (CampfireConn *)data;
-
-	conn->gsc = NULL;
+	gsc = NULL;
 	purple_debug_info("campfire", "set gsc to NULL\n");
 
-	purple_connection_ssl_error (conn->gc, error);
+	/*purple_connection_ssl_error (conn->gc, error);*/
 }
 
 void do_nothing_cb(gpointer data, PurpleSslConnection *gsc, PurpleInputCondition cond)
 {
 }
 
-void campfire_renew_connection(CampfireConn *conn, PurpleSslInputFunction cb,
-                               gpointer data)
+void campfire_add_callback(gpointer data, PurpleSslConnection *gsc, PurpleInputCondition cond)
+{
+	PurpleSslInputFunction cb = (PurpleSslInputFunction)data;
+	purple_ssl_input_add(gsc, cb, gsc);
+}
+
+void campfire_send_and_respond(PurpleSslConnection *gsc, CampfireNewConnectionCrap *crap)
+{
+	purple_debug_info("campfire", "http_request: %p, response_cb: %p\n",
+	                  crap->http_request, crap->response_cb);
+	if (crap->http_request && crap->response_cb) {
+		purple_ssl_input_add(gsc, crap->response_cb, crap->response_cb_data);
+		purple_ssl_write(gsc, crap->http_request->str, crap->http_request->len);
+		g_string_free(crap->http_request, TRUE);
+	}
+	g_free(crap);
+}
+
+void campfire_do_new_connection_crap_cb(gpointer data, PurpleSslConnection *gsc, PurpleInputCondition cond)
+{
+	CampfireNewConnectionCrap *crap = (CampfireNewConnectionCrap *)data;
+	purple_debug_info("campfire", "new connection crap\n");
+	campfire_send_and_respond(gsc, crap);
+}
+
+void campfire_renew_connection(CampfireConn *conn, CampfireNewConnectionCrap *crap)
 {
 	purple_debug_info("campfire", "CampfireConn pointer: %p\n", conn->gsc);
 	if(!conn->gsc) {
@@ -70,24 +92,19 @@ void campfire_renew_connection(CampfireConn *conn, PurpleSslInputFunction cb,
 		conn->gsc = purple_ssl_connect(conn->account,
 		                               conn->hostname,
 		                               443,
-		                               cb,
+		                               crap->connect_cb,
 		                               campfire_ssl_failure,
-		                               data);
+		                               crap->connect_cb_data);
 
 	} else {
 		purple_debug_info("campfire", "connection is still open\n");
-		purple_ssl_input_add(conn->gsc, cb, data);
+		campfire_send_and_respond(conn->gsc, crap);
 	}
 
-	if(!conn->gsc) {
-		purple_connection_error_reason(conn->gc,
-		                               PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
-		                               _("Unable to connect"));
-	}
 }
 
 void campfire_http_request(CampfireConn *conn, gchar *uri, gchar *method,
-                           PurpleSslInputFunction cb, gpointer data)
+                           CampfireNewConnectionCrap *crap)
 {
 	const char *api_token = purple_account_get_string(conn->account,
 			"api_token", "");
@@ -112,10 +129,8 @@ void campfire_http_request(CampfireConn *conn, gchar *uri, gchar *method,
 
 	g_string_append(request, "Accept: */*\r\n\r\n");
 
-	campfire_renew_connection(conn, cb, data);
-	purple_ssl_write(conn->gsc,request->str, strlen(request->str));
-	purple_debug_info("campfire", "HTTP request:\n%s\n", request->str);
-	g_string_free(request, TRUE);
+	crap->http_request = request;
+	campfire_renew_connection(conn, crap);
 }
 
 gint campfire_http_response(CampfireConn *conn, PurpleInputCondition cond,
@@ -138,6 +153,7 @@ gint campfire_http_response(CampfireConn *conn, PurpleInputCondition cond,
 		response = g_string_new("");
 	}
 
+	errno = 0;
 	/* We need a while loop here if/when the response is larger
 	 * than our 'static gchar buf'
 	 * NOTE: jabber is using a while loop here and parsing chunks of
@@ -145,37 +161,50 @@ gint campfire_http_response(CampfireConn *conn, PurpleInputCondition cond,
 	 */
 	while ((len = purple_ssl_read(conn->gsc, buf, sizeof(buf))) > 0) {
 		purple_debug_info("campfire",
-		                  "read %d bytes from HTTP Response\n",
-		                  len);
+				  "read %d bytes from HTTP Response\n",
+				  len);
 		response = g_string_append_len(response, buf, len);
 		size_response += len;
 	}
 
+
 	if (len < 0) {
 		if (errno == EAGAIN) {
-			purple_debug_info("campfire", "TRY AGAIN\n");
-			return CAMPFIRE_HTTP_RESPONSE_STATUS_TRY_AGAIN;
+			if (size_response == 0) {
+				purple_debug_info("campfire", "TRY AGAIN\n");
+				return CAMPFIRE_HTTP_RESPONSE_STATUS_TRY_AGAIN;
+			} else {
+				/* DO NOT RETURN */
+				purple_debug_info("campfire", "GOT SOMETHING\n");
+			}
 		} else {
 			purple_debug_info("campfire", "LOST CONNECTION\n");
 			purple_debug_info("campfire", "errno: %d\n", errno);
-			/*purple_ssl_close(conn->gsc);*/
-			/*conn->gsc = NULL;*/
+			purple_ssl_close(conn->gsc);
+			conn->gsc = NULL;
 			if (node) {
 				*node = NULL;
 			}
 			return CAMPFIRE_HTTP_RESPONSE_STATUS_LOST_CONNECTION;
 		}
+	} else if (len == 0) {
+			purple_debug_info("campfire", "SERVER CLOSED CONNECTION\n");
+			purple_ssl_close(conn->gsc);
+			conn->gsc = NULL;
+		if (size_response == 0) {
+			return CAMPFIRE_HTTP_RESPONSE_STATUS_DISCONNECTED;
+		}
 	}
 
 
 	/*
-	 * only continue here when len >= 0
+	 * only continue here when len >= 0 and size_response > 0
 	 * below we parse the response and pull out the
 	 * xml we need
 	 */
 	g_string_append(response, "\n");
 	purple_debug_info("campfire", "HTTP response size: %d bytes\n", size_response);
-	purple_debug_info("campfire", "HTTP response string: %s\n", response->str);
+	purple_debug_info("campfire", "HTTP response string:\n%s\n", response->str);
 
 	/*
 	 *look for the status
@@ -190,8 +219,9 @@ gint campfire_http_response(CampfireConn *conn, PurpleInputCondition cond,
 	 */
 	content = g_strstr_len(response->str, size_response, blank_line);
 
-	purple_debug_info("campfire", "HTTP response: %s\n", response->str);
-	purple_debug_info("campfire", "content: %s\n", content);
+	if (content) {
+		purple_debug_info("campfire", "content: %s\n", content);
+	}
 
 	size_response = 0; /* reset */
 	if(content == NULL) {
@@ -250,6 +280,7 @@ void campfire_room_query_callback(gpointer data, PurpleSslConnection *gsc,
 
 	if(status == CAMPFIRE_HTTP_RESPONSE_STATUS_XML_OK)
 	{
+		purple_debug_info("campfire", "processing xml...\n");
 		xmlroom = xmlnode_get_child(xmlrooms, "room");
 		while (xmlroom != NULL)
 		{
@@ -267,18 +298,23 @@ void campfire_room_query_callback(gpointer data, PurpleSslConnection *gsc,
 			purple_roomlist_room_add(conn->roomlist, room);
 			xmlroom = xmlnode_get_next_twin(xmlroom);
 		}
+		purple_roomlist_set_in_progress(conn->roomlist, FALSE);
 	}		   
-	purple_roomlist_set_in_progress(conn->roomlist, FALSE);
 }
 
 void campfire_room_query(CampfireConn *conn)
 {
-	campfire_http_request(conn, "/rooms.xml", "GET", campfire_room_query_callback, conn);
+	CampfireNewConnectionCrap *crap = g_new0(CampfireNewConnectionCrap, 1);
+	crap->connect_cb = campfire_do_new_connection_crap_cb;
+	crap->connect_cb_data = crap;
+	crap->response_cb = campfire_room_query_callback;
+	crap->response_cb_data = conn;
+	campfire_http_request(conn, "/rooms.xml", "GET", crap);
 }
 
 
 void campfire_userlist_callback(gpointer data, PurpleSslConnection *gsc,
-                                    PurpleInputCondition cond)
+				    PurpleInputCondition cond)
 {
 	CampfireConn *conn = (CampfireConn *)data;
 	PurpleConversation *convo;
@@ -320,18 +356,25 @@ void campfire_userlist_callback(gpointer data, PurpleSslConnection *gsc,
 }
 
 void campfire_room_join_callback(gpointer data, PurpleSslConnection *gsc,
-                                    PurpleInputCondition cond)
+				    PurpleInputCondition cond)
 {
 	CampfireConn *conn = (CampfireConn *)data;
-	if (campfire_http_response(conn, cond, NULL) == CAMPFIRE_HTTP_RESPONSE_STATUS_OK_NO_XML) 
+	CampfireNewConnectionCrap *crap = g_new0(CampfireNewConnectionCrap, 1);
+
+	crap->connect_cb = campfire_do_new_connection_crap_cb;
+	crap->connect_cb_data = crap;
+	crap->response_cb = campfire_userlist_callback;
+	crap->response_cb_data = conn;
+
+	if (campfire_http_response(conn, cond, NULL) == CAMPFIRE_HTTP_RESPONSE_STATUS_OK_NO_XML)
 	{
 		purple_debug_info("campfire", "joining room: %s\n", conn->room_name);
-		PurpleConversation *convo = purple_conversation_new(PURPLE_CONV_TYPE_CHAT, purple_connection_get_account(conn->gc), conn->room_name);		
+		/*PurpleConversation *convo = purple_conversation_new(PURPLE_CONV_TYPE_CHAT, purple_connection_get_account(conn->gc), conn->room_name);		*/
 		
 		GString *uri = g_string_new("/room/");
 		g_string_append(uri, conn->room_id);
 		g_string_append(uri, ".xml");
-		campfire_http_request(conn, uri->str, "GET", campfire_userlist_callback, conn);
+		campfire_http_request(conn, uri->str, "GET", crap);
 		g_string_free(uri, TRUE);		
 		
 	}
@@ -339,12 +382,17 @@ void campfire_room_join_callback(gpointer data, PurpleSslConnection *gsc,
 
 void campfire_room_join(CampfireConn *conn)
 {
+	CampfireNewConnectionCrap *crap = g_new0(CampfireNewConnectionCrap, 1);
 	GString *uri = g_string_new("/room/");
 	g_string_append(uri, conn->room_id);
 	g_string_append(uri, "/join.xml");
 
+	crap->connect_cb = campfire_do_new_connection_crap_cb;
+	crap->connect_cb_data = crap;
+	crap->response_cb = campfire_room_join_callback;
+	crap->response_cb_data = conn;
 
-	campfire_http_request(conn, uri->str, "POST", campfire_room_join_callback, conn);
+	campfire_http_request(conn, uri->str, "POST", crap);
 	g_string_free(uri, TRUE);
 }
 

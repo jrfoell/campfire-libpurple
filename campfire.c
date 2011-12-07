@@ -27,9 +27,9 @@ gboolean plugin_unload(PurplePlugin *plugin)
 
 static void campfire_login_callback(gpointer data, PurpleSslConnection *gsc, PurpleInputCondition cond)
 {
-	CampfireConn *conn = (CampfireConn *)data;	
-	//purple_ssl_close(gsc);
-	purple_connection_set_state(conn->gc, PURPLE_CONNECTED);
+	PurpleConnection *gc = (PurpleConnection *)data;	
+	purple_connection_set_state(gc, PURPLE_CONNECTED);
+	/*purple_ssl_close(gsc);*/
 }
 
 static void campfire_login(PurpleAccount *account)
@@ -38,18 +38,23 @@ static void campfire_login(PurpleAccount *account)
 	PurpleConnection *gc = purple_account_get_connection(account);
 	const char *username = purple_account_get_username(account);
 	CampfireConn *conn;
+	CampfireNewConnectionCrap *crap;
 	char **userparts;
 
 	conn = gc->proto_data = g_new0(CampfireConn, 1);
 	conn->gc = gc;
 	conn->account = account;
 	
+	crap = g_new0(CampfireNewConnectionCrap, 1);
+	crap->connect_cb = campfire_login_callback;
+	crap->connect_cb_data = gc;
+
 	userparts = g_strsplit(username, "@", 2);
 	purple_connection_set_display_name(gc, userparts[0]);
 	conn->hostname = g_strdup(userparts[1]);
 	g_strfreev(userparts);	
 
-	campfire_renew_connection(conn, campfire_login_callback, conn);
+	campfire_renew_connection(conn, crap);
 }
 
 static void campfire_close(PurpleConnection *gc)
