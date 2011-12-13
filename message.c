@@ -369,7 +369,7 @@ void campfire_room_join_callback(gpointer data, PurpleSslConnection *gsc,
 	if (campfire_http_response(conn, cond, NULL) == CAMPFIRE_HTTP_RESPONSE_STATUS_OK_NO_XML)
 	{
 		purple_debug_info("campfire", "joining room: %s\n", conn->room_name);
-		/*PurpleConversation *convo = purple_conversation_new(PURPLE_CONV_TYPE_CHAT, purple_connection_get_account(conn->gc), conn->room_name);		*/
+		purple_conversation_new(PURPLE_CONV_TYPE_CHAT, purple_connection_get_account(conn->gc), conn->room_name);
 		
 		GString *uri = g_string_new("/room/");
 		g_string_append(uri, conn->room_id);
