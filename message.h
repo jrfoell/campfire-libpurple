@@ -33,6 +33,7 @@ typedef struct _CampfireConn {
 	gchar *hostname;
 	gchar *room_id;
 	gchar *room_name;
+	guint message_timer;	
 } CampfireConn;
 
 typedef struct _CampfireNewConnectionCrap {

@@ -380,6 +380,18 @@ void campfire_room_join_callback(gpointer data, PurpleSslConnection *gsc,
 	}
 }
 
+gboolean campfire_fetch_latest_messages(gpointer data)
+{
+	purple_debug_info("campfire", "campfire_fetch_latest_messages\n");
+	//CampfireConn *conn = data;
+	return TRUE;	
+}
+
+void campfire_fetch_first_messages(CampfireConn *conn)
+{
+	purple_debug_info("campfire", "campfire_fetch_first_messages\n");
+}
+
 void campfire_room_join(CampfireConn *conn)
 {
 	CampfireNewConnectionCrap *crap = g_new0(CampfireNewConnectionCrap, 1);
@@ -394,5 +406,9 @@ void campfire_room_join(CampfireConn *conn)
 
 	campfire_http_request(conn, uri->str, "POST", crap);
 	g_string_free(uri, TRUE);
+	
+	//set up a refresh timer now that we're joined
+	conn->message_timer = purple_timeout_add_seconds(3, (GSourceFunc)campfire_fetch_latest_messages, conn);
+	campfire_fetch_first_messages(conn);
 }
 
