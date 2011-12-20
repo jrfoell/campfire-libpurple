@@ -67,10 +67,17 @@ void campfire_add_callback(gpointer data, PurpleSslConnection *gsc, PurpleInputC
 
 void campfire_send_and_respond(PurpleSslConnection *gsc, CampfireNewConnectionCrap *crap)
 {
+	static gboolean add_callback = TRUE;
+
 	purple_debug_info("campfire", "http_request: %p, response_cb: %p\n",
 	                  crap->http_request, crap->response_cb);
-	if (crap->http_request && crap->response_cb) {
-		purple_ssl_input_add(gsc, crap->response_cb, crap->response_cb_data);
+	if (crap->http_request && crap->response_cb)
+	{
+		if (add_callback)
+		{
+			purple_ssl_input_add(gsc, crap->response_cb, crap->response_cb_data);
+			add_callback = FALSE;
+		}
 		purple_ssl_write(gsc, crap->http_request->str, crap->http_request->len);
 		g_string_free(crap->http_request, TRUE);
 	}
@@ -408,7 +415,7 @@ void campfire_room_join(CampfireConn *conn)
 	g_string_free(uri, TRUE);
 	
 	//set up a refresh timer now that we're joined
-	conn->message_timer = purple_timeout_add_seconds(3, (GSourceFunc)campfire_fetch_latest_messages, conn);
-	campfire_fetch_first_messages(conn);
+	//conn->message_timer = purple_timeout_add_seconds(60, (GSourceFunc)campfire_fetch_latest_messages, conn);
+	//campfire_fetch_first_messages(conn);
 }
 
