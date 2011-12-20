@@ -36,13 +36,13 @@ typedef struct _CampfireConn {
 	guint message_timer;	
 } CampfireConn;
 
-typedef struct _CampfireNewConnectionCrap {
+typedef struct _CampfireSslTransaction {
 	PurpleSslInputFunction connect_cb;
 	gpointer connect_cb_data;
 	GString *http_request;
 	PurpleSslInputFunction response_cb;
 	gpointer response_cb_data;
-} CampfireNewConnectionCrap;
+} CampfireSslTransaction;
 
 typedef struct _CampfireRawMessage {
   gchar *message;
@@ -50,7 +50,7 @@ typedef struct _CampfireRawMessage {
 } CampfireRawMessage;
 
 
-void campfire_renew_connection(CampfireConn *conn, CampfireNewConnectionCrap *crap);
+void campfire_renew_connection(CampfireConn *conn, CampfireSslTransaction *xaction);
 void campfire_message_send(CampfireMessage *cm);
 void campfire_room_query(CampfireConn *campfire);
 void campfire_room_join(CampfireConn *campfire);

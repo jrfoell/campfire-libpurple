@@ -38,23 +38,23 @@ static void campfire_login(PurpleAccount *account)
 	PurpleConnection *gc = purple_account_get_connection(account);
 	const char *username = purple_account_get_username(account);
 	CampfireConn *conn;
-	CampfireNewConnectionCrap *crap;
+	CampfireSslTransaction *xaction;
 	char **userparts;
 
 	conn = gc->proto_data = g_new0(CampfireConn, 1);
 	conn->gc = gc;
 	conn->account = account;
 	
-	crap = g_new0(CampfireNewConnectionCrap, 1);
-	crap->connect_cb = campfire_login_callback;
-	crap->connect_cb_data = gc;
+	xaction = g_new0(CampfireSslTransaction, 1);
+	xaction->connect_cb = campfire_login_callback;
+	xaction->connect_cb_data = gc;
 
 	userparts = g_strsplit(username, "@", 2);
 	purple_connection_set_display_name(gc, userparts[0]);
 	conn->hostname = g_strdup(userparts[1]);
 	g_strfreev(userparts);	
 
-	campfire_renew_connection(conn, crap);
+	campfire_renew_connection(conn, xaction);
 }
 
 static void campfire_close(PurpleConnection *gc)
