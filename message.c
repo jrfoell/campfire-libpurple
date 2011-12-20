@@ -68,14 +68,23 @@ void campfire_add_callback(gpointer data, PurpleSslConnection *gsc, PurpleInputC
 void campfire_send_and_respond(PurpleSslConnection *gsc, CampfireNewConnectionCrap *crap)
 {
 	static gboolean add_callback = TRUE;
+	static PurpleSslConnection *last_gsc;
 
 	purple_debug_info("campfire", "http_request: %p, response_cb: %p\n",
 	                  crap->http_request, crap->response_cb);
 	if (crap->http_request && crap->response_cb)
 	{
+		if( last_gsc != NULL && last_gsc != gsc )
+		{
+			purple_debug_info("campfire", "New connection, allowing callback\n");			
+			add_callback = TRUE;
+		}
+		
 		if (add_callback)
 		{
+			last_gsc = gsc;
 			purple_ssl_input_add(gsc, crap->response_cb, crap->response_cb_data);
+			purple_debug_info("campfire", "Adding callback, not allowing anymore\n");
 			add_callback = FALSE;
 		}
 		purple_ssl_write(gsc, crap->http_request->str, crap->http_request->len);
