@@ -67,26 +67,54 @@ void campfire_add_callback(gpointer data, PurpleSslConnection *gsc, PurpleInputC
 
 void campfire_send_and_respond(PurpleSslConnection *gsc, CampfireNewConnectionCrap *crap)
 {
-	static gboolean add_callback = TRUE;
+	const gint MAX_CALLBACKS = 10;
 	static PurpleSslConnection *last_gsc;
+	static PurpleSslInputFunction active_callbacks[10];
+	gboolean add_callback = TRUE;
+	gint i;
 
+	for ( i = 0; i < MAX_CALLBACKS; i++ )
+	{
+		if( active_callbacks[i] == crap->response_cb )
+		{
+			purple_debug_info("campfire", "This callback is already added, skipping\n");
+			add_callback = FALSE;
+		}
+	}
+	
 	purple_debug_info("campfire", "http_request: %p, response_cb: %p\n",
 	                  crap->http_request, crap->response_cb);
 	if (crap->http_request && crap->response_cb)
 	{
+		//new connection
 		if( last_gsc != NULL && last_gsc != gsc )
 		{
-			purple_debug_info("campfire", "New connection, allowing callback\n");			
+			//reset all callbacks
+			for ( i = 0; i < MAX_CALLBACKS; i++ )
+				active_callbacks[i] = NULL;
+			purple_debug_info("campfire", "New connection, allowing all callbacks\n");		
 			add_callback = TRUE;
 		}
 		
 		if (add_callback)
 		{
 			last_gsc = gsc;
+			
+			for ( i = 0; i < MAX_CALLBACKS; i++ )
+			{
+				//add it to the first available slot
+				if( active_callbacks[i] == NULL )
+				{
+					active_callbacks[i] = crap->response_cb;
+					break;
+				}
+			}
+			
 			purple_ssl_input_add(gsc, crap->response_cb, crap->response_cb_data);
-			purple_debug_info("campfire", "Adding callback, not allowing anymore\n");
+			purple_debug_info("campfire", "Adding callback, not allowing this one (%p) anymore\n", crap->response_cb);
 			add_callback = FALSE;
 		}
+		//purple_ssl_input_add(gsc, crap->response_cb, crap->response_cb_data);
 		purple_ssl_write(gsc, crap->http_request->str, crap->http_request->len);
 		g_string_free(crap->http_request, TRUE);
 	}
@@ -424,7 +452,7 @@ void campfire_room_join(CampfireConn *conn)
 	g_string_free(uri, TRUE);
 	
 	//set up a refresh timer now that we're joined
-	//conn->message_timer = purple_timeout_add_seconds(60, (GSourceFunc)campfire_fetch_latest_messages, conn);
-	//campfire_fetch_first_messages(conn);
+	//conn->message_timer = purple_timeout_add_seconds(3, (GSourceFunc)campfire_fetch_latest_messages, conn);
+	campfire_fetch_first_messages(conn);
 }
 
