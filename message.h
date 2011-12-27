@@ -5,13 +5,17 @@
 #include <plugin.h>
 #include <roomlist.h>
 
+#define CAMPFIRE_MESSAGE_TEXT "TextMessage"
+#define	CAMPFIRE_MESSAGE_PASTE "PasteMessage"
+#define	CAMPFIRE_MESSAGE_SOUND "SoundMessage"
+#define	CAMPFIRE_MESSAGE_TWEET "TweetMessage"
+#define	CAMPFIRE_MESSAGE_ENTER "EnterMessage"
+#define	CAMPFIRE_MESSAGE_LEAVE "LeaveMessage"
+#define	CAMPFIRE_MESSAGE_TIME "TimestampMessage"
+#define	CAMPFIRE_MESSAGE_KICK "KickMessage"
+
 typedef struct _CampfireMessage {
-	enum {
-		CAMPFIRE_MESSAGE_TEXT,
-		CAMPFIRE_MESSAGE_PASTE,
-		CAMPFIRE_MESSAGE_SOUND,
-		CAMPFIRE_MESSAGE_TWEET
-	} type;
+	gchar *type;
 	gchar *body;
 } CampfireMessage;
 
