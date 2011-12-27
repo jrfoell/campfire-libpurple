@@ -75,7 +75,7 @@ void campfire_send_and_respond(PurpleSslConnection *gsc, CampfireSslTransaction 
 
 	for ( i = 0; i < MAX_CALLBACKS; i++ )
 	{
-		if( active_callbacks[i] == crap->response_cb )
+		if( active_callbacks[i] == xaction->response_cb )
 		{
 			purple_debug_info("campfire", "This callback is already added, skipping\n");
 			add_callback = FALSE;
@@ -105,16 +105,15 @@ void campfire_send_and_respond(PurpleSslConnection *gsc, CampfireSslTransaction 
 				//add it to the first available slot
 				if( active_callbacks[i] == NULL )
 				{
-					active_callbacks[i] = crap->response_cb;
+					active_callbacks[i] = xaction->response_cb;
 					break;
 				}
 			}
 			
 			purple_ssl_input_add(gsc, xaction->response_cb, xaction->response_cb_data);
-			purple_debug_info("campfire", "Adding callback, not allowing this one (%p) anymore\n", crap->response_cb);
+			purple_debug_info("campfire", "Adding callback, not allowing this one (%p) anymore\n", xaction->response_cb);
 			add_callback = FALSE;
 		}
-		//purple_ssl_input_add(gsc, crap->response_cb, crap->response_cb_data);
 		purple_ssl_write(gsc, xaction->http_request->str, xaction->http_request->len);
 		g_string_free(xaction->http_request, TRUE);
 	}
