@@ -536,6 +536,7 @@ void campfire_room_join(CampfireConn *conn)
 /*
 gchar* campfire_get_username(gint user_id)
 {
-	static GHashTable *user_table = g_hash_table_new(NULL, g_int_inqual);
+	static GHashTable *user_table = g_hash_table_new(NULL, g_int_equal);
 }
 */
+
