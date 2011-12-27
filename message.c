@@ -528,3 +528,9 @@ void campfire_room_join(CampfireConn *conn)
 	conn->message_timer = purple_timeout_add_seconds(3, (GSourceFunc)campfire_fetch_latest_messages, conn);
 }
 
+/*
+gchar* campfire_get_username(gint user_id)
+{
+	static GHashTable *user_table = g_hash_table_new(NULL, g_int_inqual);
+}
+*/
