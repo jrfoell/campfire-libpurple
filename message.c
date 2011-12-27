@@ -49,10 +49,7 @@ void campfire_message_send(CampfireMessage *cm)
 
 void campfire_ssl_failure(PurpleSslConnection *gsc, PurpleSslErrorType error, gpointer data)
 {
-	gsc = NULL;
-	purple_debug_info("campfire", "set gsc to NULL\n");
-
-	/*purple_connection_ssl_error (conn->gc, error);*/
+	purple_debug_info("campfire", "ssl connect failure\n");
 }
 
 void do_nothing_cb(gpointer data, PurpleSslConnection *gsc, PurpleInputCondition cond)
@@ -67,57 +64,25 @@ void campfire_add_callback(gpointer data, PurpleSslConnection *gsc, PurpleInputC
 
 void campfire_send_and_respond(PurpleSslConnection *gsc, CampfireSslTransaction *xaction)
 {
-	const gint MAX_CALLBACKS = 10;
-	static PurpleSslConnection *last_gsc;
-	static PurpleSslInputFunction active_callbacks[10];
-	gboolean add_callback = TRUE;
-	gint i;
-
-	for ( i = 0; i < MAX_CALLBACKS; i++ )
-	{
-		if( active_callbacks[i] == xaction->response_cb )
-		{
-			purple_debug_info("campfire", "This callback is already added, skipping\n");
-			add_callback = FALSE;
-		}
-	}
-	
 	purple_debug_info("campfire", "http_request: %p, response_cb: %p\n",
 	                  xaction->http_request, xaction->response_cb);
+	/* only add input and write to ssl connection if
+	 * you have a http_request string and a handler function
+	 */
 	if (xaction->http_request && xaction->response_cb)
 	{
-		//new connection
-		if( last_gsc != NULL && last_gsc != gsc )
-		{
-			//reset all callbacks
-			for ( i = 0; i < MAX_CALLBACKS; i++ )
-				active_callbacks[i] = NULL;
-			purple_debug_info("campfire", "New connection, allowing all callbacks\n");		
-			add_callback = TRUE;
+		/* remove older input handler, if any exists */
+		if (gsc->inpa > 0) {
+			purple_input_remove(gsc->inpa);
 		}
-		
-		if (add_callback)
-		{
-			last_gsc = gsc;
-			
-			for ( i = 0; i < MAX_CALLBACKS; i++ )
-			{
-				//add it to the first available slot
-				if( active_callbacks[i] == NULL )
-				{
-					active_callbacks[i] = xaction->response_cb;
-					break;
-				}
-			}
-			
-			purple_ssl_input_add(gsc, xaction->response_cb, xaction->response_cb_data);
-			purple_debug_info("campfire", "Adding callback, not allowing this one (%p) anymore\n", xaction->response_cb);
-			add_callback = FALSE;
-		}
+		purple_ssl_input_add(gsc, xaction->response_cb, xaction->response_cb_data);
 		purple_ssl_write(gsc, xaction->http_request->str, xaction->http_request->len);
 		g_string_free(xaction->http_request, TRUE);
+
 	}
-	g_free(xaction);
+	/* this must be 'free'd somewhere bu not here
+	 * g_free(xaction);
+	 */
 }
 
 void campfire_do_new_connection_xaction_cb(gpointer data, PurpleSslConnection *gsc, PurpleInputCondition cond)
@@ -127,15 +92,16 @@ void campfire_do_new_connection_xaction_cb(gpointer data, PurpleSslConnection *g
 	campfire_send_and_respond(gsc, xaction);
 }
 
-void campfire_renew_connection(CampfireConn *conn, CampfireSslTransaction *xaction)
+void campfire_renew_connection(CampfireSslTransaction *xaction)
 {
-	purple_debug_info("campfire", "CampfireConn pointer: %p\n", conn->gsc);
+	CampfireConn *conn = xaction->campfire;
+
 	if(!conn->gsc) {
 		purple_debug_info("campfire", "Renewing connnection\n");
 		conn->gsc = purple_ssl_connect(conn->account,
 		                               conn->hostname,
 		                               443,
-		                               xaction->connect_cb,
+					       xaction->connect_cb,
 		                               campfire_ssl_failure,
 		                               xaction->connect_cb_data);
 
@@ -146,41 +112,40 @@ void campfire_renew_connection(CampfireConn *conn, CampfireSslTransaction *xacti
 
 }
 
-void campfire_http_request(CampfireConn *conn, gchar *uri, gchar *method,
-                           CampfireSslTransaction *xaction)
+void campfire_http_request(CampfireSslTransaction *xaction, gchar *uri, gchar *method)
 {
+	CampfireConn *conn = xaction->campfire;
 	const char *api_token = purple_account_get_string(conn->account,
 			"api_token", "");
 
-	GString *request = g_string_new(method);
-	g_string_append(request, " ");
-	g_string_append(request, uri);
-	g_string_append(request, " HTTP/1.1\r\n");
+	xaction->http_request = g_string_new(method);
+	g_string_append(xaction->http_request, " ");
+	g_string_append(xaction->http_request, uri);
+	g_string_append(xaction->http_request, " HTTP/1.1\r\n");
 
-	g_string_append(request, "Content-Type: application/xml\r\n");
+	g_string_append(xaction->http_request, "Content-Type: application/xml\r\n");
 	
-	g_string_append(request, "Authorization: Basic ");
+	g_string_append(xaction->http_request, "Authorization: Basic ");
 	gsize auth_len = strlen(api_token);
 	gchar *encoded = purple_base64_encode((const guchar *)api_token, auth_len);
-	g_string_append(request, encoded);
-	g_string_append(request, "\r\n");	
+	g_string_append(xaction->http_request, encoded);
+	g_string_append(xaction->http_request, "\r\n");	
 	g_free(encoded);
 	
-	g_string_append(request, "Host: ");
-	g_string_append(request, conn->hostname);
-	g_string_append(request, "\r\n");
+	g_string_append(xaction->http_request, "Host: ");
+	g_string_append(xaction->http_request, conn->hostname);
+	g_string_append(xaction->http_request, "\r\n");
 
-	g_string_append(request, "Accept: */*\r\n\r\n");
+	g_string_append(xaction->http_request, "Accept: */*\r\n\r\n");
 
-	xaction->http_request = request;
-	campfire_renew_connection(conn, xaction);
+	campfire_renew_connection(xaction);
 }
 
-gint campfire_http_response(CampfireConn *conn, PurpleInputCondition cond,
+gint campfire_http_response(CampfireSslTransaction *xaction, PurpleInputCondition cond,
                             xmlnode **node)
 {
-	static GString *response = NULL;
-	static gchar buf[1024];
+	CampfireConn *conn = xaction->campfire;
+	gchar buf[1024];
 	gchar *blank_line = "\r\n\r\n";
 	gchar *status_header = "\r\nStatus: ";
 	gchar *xml_header = "<?xml";
@@ -190,10 +155,10 @@ gint campfire_http_response(CampfireConn *conn, PurpleInputCondition cond,
 	static gint size_response = 0;
 
 	if (size_response == 0) {
-		if (response) {
-			g_string_free(response, TRUE);
+		if (xaction->http_response) {
+			g_string_free(xaction->http_response, TRUE);
 		}
-		response = g_string_new("");
+		xaction->http_response = g_string_new("");
 	}
 
 	errno = 0;
@@ -206,7 +171,7 @@ gint campfire_http_response(CampfireConn *conn, PurpleInputCondition cond,
 		purple_debug_info("campfire",
 				  "read %d bytes from HTTP Response\n",
 				  len);
-		response = g_string_append_len(response, buf, len);
+		xaction->http_response = g_string_append_len(xaction->http_response, buf, len);
 		size_response += len;
 	}
 
@@ -231,9 +196,9 @@ gint campfire_http_response(CampfireConn *conn, PurpleInputCondition cond,
 			return CAMPFIRE_HTTP_RESPONSE_STATUS_LOST_CONNECTION;
 		}
 	} else if (len == 0) {
-			purple_debug_info("campfire", "SERVER CLOSED CONNECTION\n");
-			purple_ssl_close(conn->gsc);
-			conn->gsc = NULL;
+		purple_debug_info("campfire", "SERVER CLOSED CONNECTION\n");
+		purple_ssl_close(conn->gsc);
+		conn->gsc = NULL;
 		if (size_response == 0) {
 			return CAMPFIRE_HTTP_RESPONSE_STATUS_DISCONNECTED;
 		}
@@ -245,14 +210,14 @@ gint campfire_http_response(CampfireConn *conn, PurpleInputCondition cond,
 	 * below we parse the response and pull out the
 	 * xml we need
 	 */
-	g_string_append(response, "\n");
+	g_string_append(xaction->http_response, "\n");
 	purple_debug_info("campfire", "HTTP response size: %d bytes\n", size_response);
-	purple_debug_info("campfire", "HTTP response string:\n%s\n", response->str);
+	purple_debug_info("campfire", "HTTP response string:\n%s\n", xaction->http_response->str);
 
 	/*
 	 *look for the status
 	 */
-	gchar *status_and_after = g_strstr_len(response->str, size_response, status_header);
+	gchar *status_and_after = g_strstr_len(xaction->http_response->str, size_response, status_header);
 	gchar *status = g_malloc0(4); //status is 3-digits plus NULL
 	g_strlcpy (status, &status_and_after[strlen(status_header)], 4);
 	purple_debug_info("campfire", "HTTP status: %s\n", status);
@@ -260,7 +225,7 @@ gint campfire_http_response(CampfireConn *conn, PurpleInputCondition cond,
 	/*
 	 *look for the content
 	 */
-	content = g_strstr_len(response->str, size_response, blank_line);
+	content = g_strstr_len(xaction->http_response->str, size_response, blank_line);
 
 	if (content) {
 		purple_debug_info("campfire", "content: %s\n", content);
@@ -295,8 +260,8 @@ gint campfire_http_response(CampfireConn *conn, PurpleInputCondition cond,
 	node_str = xmlnode_to_str(tmpnode, NULL);
 	purple_debug_info("campfire", "xml: %s\n", node_str);
 	g_free(node_str);
-	g_string_free(response, TRUE);
-	response = NULL;
+	g_string_free(xaction->http_response, TRUE);
+	xaction->http_response = NULL;
 	if (node) {
 		*node = tmpnode;
 	}
@@ -310,7 +275,8 @@ gint campfire_http_response(CampfireConn *conn, PurpleInputCondition cond,
 void campfire_room_query_callback(gpointer data, PurpleSslConnection *gsc,
                                   PurpleInputCondition cond)
 {
-	CampfireConn *conn = (CampfireConn *)data;
+	CampfireSslTransaction *xaction = (CampfireSslTransaction *)data;
+	CampfireConn *conn = xaction->campfire;
 	gint status;
 
 	xmlnode *xmlrooms = NULL;
@@ -319,7 +285,7 @@ void campfire_room_query_callback(gpointer data, PurpleSslConnection *gsc,
 	//if (conn->roomlist)
 	//	purple_roomlist_unref(conn->roomlist);
 
-	status = campfire_http_response(conn, cond, &xmlrooms);
+	status = campfire_http_response(xaction, cond, &xmlrooms);
 
 	if(status == CAMPFIRE_HTTP_RESPONSE_STATUS_XML_OK)
 	{
@@ -348,24 +314,28 @@ void campfire_room_query_callback(gpointer data, PurpleSslConnection *gsc,
 void campfire_room_query(CampfireConn *conn)
 {
 	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);
+
+	xaction->campfire = conn;
 	xaction->connect_cb = campfire_do_new_connection_xaction_cb;
 	xaction->connect_cb_data = xaction;
 	xaction->response_cb = campfire_room_query_callback;
-	xaction->response_cb_data = conn;
-	campfire_http_request(conn, "/rooms.xml", "GET", xaction);
+	xaction->response_cb_data = xaction;
+	xaction->http_response = NULL;
+	campfire_http_request(xaction, "/rooms.xml", "GET");
 }
 
 
 void campfire_userlist_callback(gpointer data, PurpleSslConnection *gsc,
-				    PurpleInputCondition cond)
+                                PurpleInputCondition cond)
 {
-	CampfireConn *conn = (CampfireConn *)data;
+	CampfireSslTransaction *xaction = (CampfireSslTransaction *)data;
+	CampfireConn *conn = xaction->campfire;
 	PurpleConversation *convo;
 	xmlnode *xmlroom = NULL;
 	xmlnode *xmlusers = NULL;
 	xmlnode *xmluser = NULL;
 	
-	if(campfire_http_response(conn, cond, &xmlroom) == CAMPFIRE_HTTP_RESPONSE_STATUS_XML_OK)
+	if(campfire_http_response(xaction, cond, &xmlroom) == CAMPFIRE_HTTP_RESPONSE_STATUS_XML_OK)
 	{
 		purple_debug_info("campfire", "locating room: %s\n", conn->room_name);
 		convo = purple_find_conversation_with_account(PURPLE_CONV_TYPE_ANY, conn->room_name, purple_connection_get_account(conn->gc));
@@ -404,12 +374,13 @@ void campfire_room_join_callback(gpointer data, PurpleSslConnection *gsc,
 	CampfireConn *conn = (CampfireConn *)data;
 	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);
 
+	xaction->campfire = conn;
 	xaction->connect_cb = campfire_do_new_connection_xaction_cb;
 	xaction->connect_cb_data = xaction;
 	xaction->response_cb = campfire_userlist_callback;
-	xaction->response_cb_data = conn;
+	xaction->response_cb_data = xaction;
 
-	if (campfire_http_response(conn, cond, NULL) == CAMPFIRE_HTTP_RESPONSE_STATUS_OK_NO_XML)
+	if (campfire_http_response(xaction, cond, NULL) == CAMPFIRE_HTTP_RESPONSE_STATUS_OK_NO_XML)
 	{
 		purple_debug_info("campfire", "joining room: %s\n", conn->room_name);
 		purple_conversation_new(PURPLE_CONV_TYPE_CHAT, purple_connection_get_account(conn->gc), conn->room_name);
@@ -417,7 +388,7 @@ void campfire_room_join_callback(gpointer data, PurpleSslConnection *gsc,
 		GString *uri = g_string_new("/room/");
 		g_string_append(uri, conn->room_id);
 		g_string_append(uri, ".xml");
-		campfire_http_request(conn, uri->str, "GET", xaction);
+		campfire_http_request(xaction, uri->str, "GET");
 		g_string_free(uri, TRUE);		
 		
 	}
@@ -447,7 +418,7 @@ void campfire_room_join(CampfireConn *conn)
 	xaction->response_cb = campfire_room_join_callback;
 	xaction->response_cb_data = conn;
 
-	campfire_http_request(conn, uri->str, "POST", xaction);
+	campfire_http_request(xaction, uri->str, "POST");
 	g_string_free(uri, TRUE);
 	
 	//set up a refresh timer now that we're joined
