@@ -397,7 +397,7 @@ gboolean campfire_room_check(gpointer data)
 	xaction->connect_cb = campfire_do_new_connection_xaction_cb;
 	xaction->connect_cb_data = xaction;
 	xaction->response_cb = campfire_userlist_callback;
-	xaction->response_cb_data = conn;
+	xaction->response_cb_data = xaction;
 	
 	purple_debug_info("campfire", "checking for users in room: %s\n", conn->room_name);
 	GString *uri = g_string_new("/room/");
@@ -480,7 +480,7 @@ void campfire_fetch_first_messages(CampfireConn *conn)
 	xaction->connect_cb = campfire_do_new_connection_xaction_cb;
 	xaction->connect_cb_data = xaction;
 	xaction->response_cb = campfire_message_callback;
-	xaction->response_cb_data = conn;
+	xaction->response_cb_data = xaction;
 
 	campfire_http_request(xaction, uri->str, "GET");
 	g_string_free(uri, TRUE);
@@ -524,7 +524,7 @@ void campfire_room_join(CampfireConn *conn)
 	xaction->connect_cb = campfire_do_new_connection_xaction_cb;
 	xaction->connect_cb_data = xaction;
 	xaction->response_cb = campfire_room_join_callback;
-	xaction->response_cb_data = conn;
+	xaction->response_cb_data = xaction;
 
 	campfire_http_request(xaction, uri->str, "POST");
 	g_string_free(uri, TRUE);
