@@ -403,7 +403,7 @@ gboolean campfire_room_check(gpointer data)
 	GString *uri = g_string_new("/room/");
 	g_string_append(uri, conn->room_id);
 	g_string_append(uri, ".xml");
-	campfire_http_request(conn, uri->str, "GET", xaction);
+	campfire_http_request(xaction, uri->str, "GET");
 	g_string_free(uri, TRUE);
 	
 	return TRUE;
@@ -412,12 +412,13 @@ gboolean campfire_room_check(gpointer data)
 void campfire_message_callback(gpointer data, PurpleSslConnection *gsc,
 				    PurpleInputCondition cond)
 {
-	CampfireConn *conn = (CampfireConn *)data;
+	CampfireSslTransaction *xaction = (CampfireSslTransaction *)data;
+	CampfireConn *conn = xaction->campfire;
 	PurpleConversation *convo;
 	xmlnode *xmlmessages = NULL;
 	xmlnode *xmlmessage = NULL;
 	
-	if(campfire_http_response(conn, cond, &xmlmessages) == CAMPFIRE_HTTP_RESPONSE_STATUS_XML_OK)
+	if(campfire_http_response(xaction, cond, &xmlmessages) == CAMPFIRE_HTTP_RESPONSE_STATUS_XML_OK)
 	{
 		purple_debug_info("campfire", "retrieving messages from: %s\n", conn->room_name);
 		convo = purple_find_conversation_with_account(PURPLE_CONV_TYPE_ANY, conn->room_name, purple_connection_get_account(conn->gc));
@@ -467,28 +468,31 @@ void campfire_message_callback(gpointer data, PurpleSslConnection *gsc,
 
 void campfire_fetch_first_messages(CampfireConn *conn)
 {
+	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);
+
 	purple_debug_info("campfire", "campfire_fetch_first_messages\n");
 
 	GString *uri = g_string_new("/room/");
 	g_string_append(uri, conn->room_id);
 	g_string_append(uri, "/recent.xml?limit=20");
 
-	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);
+	xaction->campfire = conn;
 	xaction->connect_cb = campfire_do_new_connection_xaction_cb;
 	xaction->connect_cb_data = xaction;
 	xaction->response_cb = campfire_message_callback;
 	xaction->response_cb_data = conn;
 
-	campfire_http_request(conn, uri->str, "GET", xaction);
+	campfire_http_request(xaction, uri->str, "GET");
 	g_string_free(uri, TRUE);
 }
 
 void campfire_room_join_callback(gpointer data, PurpleSslConnection *gsc,
 				    PurpleInputCondition cond)
 {
-	CampfireConn *conn = (CampfireConn *)data;
+	CampfireSslTransaction *xaction = (CampfireSslTransaction *)data;
+	CampfireConn *conn = xaction->campfire;
 	
-	if (campfire_http_response(conn, cond, NULL) == CAMPFIRE_HTTP_RESPONSE_STATUS_OK_NO_XML)
+	if (campfire_http_response(xaction, cond, NULL) == CAMPFIRE_HTTP_RESPONSE_STATUS_OK_NO_XML)
 	{		
 		campfire_room_check(conn);
 
@@ -516,6 +520,7 @@ void campfire_room_join(CampfireConn *conn)
 	g_string_append(uri, conn->room_id);
 	g_string_append(uri, "/join.xml");
 
+	xaction->campfire = conn;
 	xaction->connect_cb = campfire_do_new_connection_xaction_cb;
 	xaction->connect_cb_data = xaction;
 	xaction->response_cb = campfire_room_join_callback;
