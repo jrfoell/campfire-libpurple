@@ -14,28 +14,13 @@
 void campfire_message_send(CampfireMessage *cm)
 {
 	xmlnode *message, *child;
-	const char *type = NULL;
 
 	message = xmlnode_new("message");
 
-	switch(cm->type) {
-		case CAMPFIRE_MESSAGE_PASTE:
-			type = "PasteMessage";
-			break;
-		case CAMPFIRE_MESSAGE_SOUND:
-			type = "SoundMessage";
-			break;
-		case CAMPFIRE_MESSAGE_TWEET:
-			type = "TweetMessage";
-			break;
-		case CAMPFIRE_MESSAGE_TEXT:
-		default:
-			type = "TextMessage";
-			break;
-	}
-
-	if(type)
-		xmlnode_set_attrib(message, "type", type);
+	if(cm->type)
+		xmlnode_set_attrib(message, "type", cm->type);
+	else
+		xmlnode_set_attrib(message, "type", CAMPFIRE_MESSAGE_TEXT);
 	
 	if(cm->body) {
 		child = xmlnode_new_child(message, "body");
@@ -424,20 +409,96 @@ gboolean campfire_room_check(gpointer data)
 	return TRUE;
 }
 
+void campfire_message_callback(gpointer data, PurpleSslConnection *gsc,
+				    PurpleInputCondition cond)
+{
+	CampfireConn *conn = (CampfireConn *)data;
+	PurpleConversation *convo;
+	xmlnode *xmlmessages = NULL;
+	xmlnode *xmlmessage = NULL;
+	
+	if(campfire_http_response(conn, cond, &xmlmessages) == CAMPFIRE_HTTP_RESPONSE_STATUS_XML_OK)
+	{
+		purple_debug_info("campfire", "retrieving messages from: %s\n", conn->room_name);
+		convo = purple_find_conversation_with_account(PURPLE_CONV_TYPE_ANY, conn->room_name, purple_connection_get_account(conn->gc));
+		xmlmessage = xmlnode_get_child(xmlmessages, "message");
+
+		while (xmlmessage != NULL)
+		{
+			xmlnode *xmlbody = xmlnode_get_child(xmlmessage, "body");
+			gchar *body = xmlnode_get_data(xmlbody);
+			xmlnode *xmltype = xmlnode_get_child(xmlmessage, "type");
+			xmlnode *xmluser_id = xmlnode_get_child(xmlmessage, "user-id");
+			gchar *user_id = xmlnode_get_data(xmluser_id);
+			xmlnode *xmltime = xmlnode_get_child(xmlmessage, "created-at");
+			GTimeVal time;
+			time_t mtime = 0;
+			if(g_time_val_from_iso8601(xmlnode_get_data(xmltime), &time))
+			{
+				mtime = time.tv_sec;
+			}
+									
+			gchar *msgtype = xmlnode_get_data(xmltype);
+			
+			purple_debug_info("campfire", "got message of type: %s\n", msgtype);
+
+			if ( g_strcmp0( msgtype, CAMPFIRE_MESSAGE_ENTER ) == 0 )
+			{
+			}
+			else if ( g_strcmp0( msgtype, CAMPFIRE_MESSAGE_LEAVE ) == 0 )
+			{
+			}
+			else if ( g_strcmp0( msgtype, CAMPFIRE_MESSAGE_KICK ) == 0 )
+			{
+			}
+			else if ( g_strcmp0( msgtype, CAMPFIRE_MESSAGE_TIME ) == 0 )
+			{
+			}
+			else
+			{
+				purple_conv_chat_write(PURPLE_CONV_CHAT(convo), user_id,
+									   body, PURPLE_CBFLAGS_NONE,
+									   mtime);
+			}
+			xmlmessage = xmlnode_get_next_twin(xmlmessage);
+		}
+	}
+}
+
+void campfire_fetch_first_messages(CampfireConn *conn)
+{
+	purple_debug_info("campfire", "campfire_fetch_first_messages\n");
+
+	GString *uri = g_string_new("/room/");
+	g_string_append(uri, conn->room_id);
+	g_string_append(uri, "/recent.xml?limit=20");
+
+	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);
+	xaction->connect_cb = campfire_do_new_connection_xaction_cb;
+	xaction->connect_cb_data = xaction;
+	xaction->response_cb = campfire_message_callback;
+	xaction->response_cb_data = conn;
+
+	campfire_http_request(conn, uri->str, "GET", xaction);
+	g_string_free(uri, TRUE);
+}
+
 void campfire_room_join_callback(gpointer data, PurpleSslConnection *gsc,
 				    PurpleInputCondition cond)
 {
 	CampfireConn *conn = (CampfireConn *)data;
 	
 	if (campfire_http_response(conn, cond, NULL) == CAMPFIRE_HTTP_RESPONSE_STATUS_OK_NO_XML)
-	{
+	{		
 		campfire_room_check(conn);
-		
+
 		purple_debug_info("campfire", "joining room: %s\n", conn->room_name);
 		purple_conversation_new(PURPLE_CONV_TYPE_CHAT, purple_connection_get_account(conn->gc), conn->room_name);		
 
 		//call this method again periodically to check for new users
 		conn->message_timer = purple_timeout_add_seconds(3, (GSourceFunc)campfire_room_check, conn);		
+
+		//campfire_fetch_first_messages(conn);
 	}
 }
 
@@ -446,11 +507,6 @@ gboolean campfire_fetch_latest_messages(gpointer data)
 	purple_debug_info("campfire", "campfire_fetch_latest_messages\n");
 	//CampfireConn *conn = data;
 	return TRUE;	
-}
-
-void campfire_fetch_first_messages(CampfireConn *conn)
-{
-	purple_debug_info("campfire", "campfire_fetch_first_messages\n");
 }
 
 void campfire_room_join(CampfireConn *conn)
@@ -470,6 +526,5 @@ void campfire_room_join(CampfireConn *conn)
 	
 	//set up a refresh timer now that we're joined
 	conn->message_timer = purple_timeout_add_seconds(3, (GSourceFunc)campfire_fetch_latest_messages, conn);
-	campfire_fetch_first_messages(conn);
 }
 
