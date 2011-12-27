@@ -342,34 +342,68 @@ void campfire_userlist_callback(gpointer data, PurpleSslConnection *gsc,
 		xmlusers = xmlnode_get_child(xmlroom, "users");
 		xmluser = xmlnode_get_child(xmlusers, "user");
 		GList *users = NULL;
-		GList *flags = NULL;
-		PurpleConvChatBuddyFlags f = PURPLE_CBFLAGS_NONE;
+
 		while (xmluser != NULL)
 		{
 			xmlnode *xmlname = xmlnode_get_child(xmluser, "name");
 			gchar *name = xmlnode_get_data(xmlname);
 			purple_debug_info("campfire", "user in room: %s\n", name);
+
+			if ( ! purple_conv_chat_find_user(PURPLE_CONV_CHAT(convo), name) )
+			{
+				purple_debug_info("campfire", "adding user %s to room\n", name);
+				purple_conv_chat_add_user(PURPLE_CONV_CHAT(convo), name, NULL, PURPLE_CBFLAGS_NONE, TRUE);
+			}
 			users = g_list_prepend(users, name);
-			flags = g_list_prepend(flags, GINT_TO_POINTER(f));
 			xmluser = xmlnode_get_next_twin(xmluser);
 		}
-		
-		if (users != NULL) {
-			GList *l;
-			purple_debug_info("campfire", "adding users to room\n");
-			purple_conv_chat_add_users(PURPLE_CONV_CHAT(convo), users, NULL, flags, FALSE);
 
-			for (l = users; l != NULL; l = l->next)
-				g_free(l->data);
+		purple_debug_info("campfire", "Getting all users in room\n");
+		GList *chatusers = purple_conv_chat_get_users(PURPLE_CONV_CHAT(convo));
+		purple_debug_info("campfire", "got all users in room %p\n", chatusers);
 
-			g_list_free(users);
+		if (users == NULL) //probably shouldn't happen
+		{
+			purple_debug_info("campfire", "removing all users from room");
+			purple_conv_chat_remove_users(PURPLE_CONV_CHAT(convo), chatusers, NULL);
 		}
+		else if (chatusers != NULL) //also probably shouldn't happen
+		{
+			purple_debug_info("campfire", "iterating chat users\n");
+			for (; chatusers != NULL; chatusers = chatusers->next)
+			{
+				PurpleConvChatBuddy *buddy = chatusers->data;
+				gboolean found = FALSE;
+				purple_debug_info("campfire", "checking to see if user %s has left\n", buddy->name);
+				for (; users; users = users->next)
+				{
+					if ( g_strcmp0( users->data, buddy->name ) == 0 )
+					{
+						purple_debug_info("campfire", "user %s is still here\n", buddy->name);
+						found = TRUE;
+						break;
+					}
+				}
+
+				if (!found)
+				{
+					purple_debug_info("campfire", "removing user %s that has left\n", buddy->name);
+					purple_conv_chat_remove_user(PURPLE_CONV_CHAT(convo), buddy->name, NULL);
+				}
+				
+				//g_free(c->data);
+			}
+
+			//g_list_free(c);
+			//g_list_free(users);			
+		}
+
+		//g_list_free(chatusers);
 	}
 	
 }
 
-void campfire_room_join_callback(gpointer data, PurpleSslConnection *gsc,
-				    PurpleInputCondition cond)
+gboolean campfire_room_check(gpointer data)	
 {
 	CampfireConn *conn = (CampfireConn *)data;
 	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);
@@ -378,19 +412,32 @@ void campfire_room_join_callback(gpointer data, PurpleSslConnection *gsc,
 	xaction->connect_cb = campfire_do_new_connection_xaction_cb;
 	xaction->connect_cb_data = xaction;
 	xaction->response_cb = campfire_userlist_callback;
-	xaction->response_cb_data = xaction;
+	xaction->response_cb_data = conn;
+	
+	purple_debug_info("campfire", "checking for users in room: %s\n", conn->room_name);
+	GString *uri = g_string_new("/room/");
+	g_string_append(uri, conn->room_id);
+	g_string_append(uri, ".xml");
+	campfire_http_request(conn, uri->str, "GET", xaction);
+	g_string_free(uri, TRUE);
+	
+	return TRUE;
+}
 
-	if (campfire_http_response(xaction, cond, NULL) == CAMPFIRE_HTTP_RESPONSE_STATUS_OK_NO_XML)
+void campfire_room_join_callback(gpointer data, PurpleSslConnection *gsc,
+				    PurpleInputCondition cond)
+{
+	CampfireConn *conn = (CampfireConn *)data;
+	
+	if (campfire_http_response(conn, cond, NULL) == CAMPFIRE_HTTP_RESPONSE_STATUS_OK_NO_XML)
 	{
+		campfire_room_check(conn);
+		
 		purple_debug_info("campfire", "joining room: %s\n", conn->room_name);
-		purple_conversation_new(PURPLE_CONV_TYPE_CHAT, purple_connection_get_account(conn->gc), conn->room_name);
-		
-		GString *uri = g_string_new("/room/");
-		g_string_append(uri, conn->room_id);
-		g_string_append(uri, ".xml");
-		campfire_http_request(xaction, uri->str, "GET");
-		g_string_free(uri, TRUE);		
-		
+		purple_conversation_new(PURPLE_CONV_TYPE_CHAT, purple_connection_get_account(conn->gc), conn->room_name);		
+
+		//call this method again periodically to check for new users
+		conn->message_timer = purple_timeout_add_seconds(3, (GSourceFunc)campfire_room_check, conn);		
 	}
 }
 
@@ -422,7 +469,7 @@ void campfire_room_join(CampfireConn *conn)
 	g_string_free(uri, TRUE);
 	
 	//set up a refresh timer now that we're joined
-	//conn->message_timer = purple_timeout_add_seconds(3, (GSourceFunc)campfire_fetch_latest_messages, conn);
+	conn->message_timer = purple_timeout_add_seconds(3, (GSourceFunc)campfire_fetch_latest_messages, conn);
 	campfire_fetch_first_messages(conn);
 }
 
