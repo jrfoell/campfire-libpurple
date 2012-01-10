@@ -457,9 +457,13 @@ void campfire_message_callback(gpointer data, PurpleSslConnection *gsc,
 			}
 			else
 			{
-				purple_conv_chat_write(PURPLE_CONV_CHAT(convo), user_id,
-									   body, PURPLE_CBFLAGS_NONE,
+				purple_debug_info("campfire", "Writing text message \"%s\" to conversation %p\n", body, convo);
+				purple_conversation_write(convo, user_id, body, PURPLE_MESSAGE_RECV, mtime);
+/*
+				purple_conv_chat_write(PURPLE_CONV_CHAT(convo), "Justin Foell",
+									   body, PURPLE_MESSAGE_RECV,
 									   mtime);
+*/
 			}
 			xmlmessage = xmlnode_get_next_twin(xmlmessage);
 		}
@@ -474,7 +478,7 @@ void campfire_fetch_first_messages(CampfireConn *conn)
 
 	GString *uri = g_string_new("/room/");
 	g_string_append(uri, conn->room_id);
-	g_string_append(uri, "/recent.xml?limit=20");
+	g_string_append(uri, "/recent.xml?limit=40");
 
 	xaction->campfire = conn;
 	xaction->connect_cb = campfire_do_new_connection_xaction_cb;
@@ -493,8 +497,9 @@ void campfire_room_join_callback(gpointer data, PurpleSslConnection *gsc,
 	CampfireConn *conn = xaction->campfire;
 	
 	if (campfire_http_response(xaction, cond, NULL) == CAMPFIRE_HTTP_RESPONSE_STATUS_OK_NO_XML)
-	{		
+	{
 		campfire_room_check(conn);
+		campfire_fetch_first_messages(conn);
 
 		purple_debug_info("campfire", "joining room: %s\n", conn->room_name);
 		purple_conversation_new(PURPLE_CONV_TYPE_CHAT, purple_connection_get_account(conn->gc), conn->room_name);		
@@ -502,7 +507,6 @@ void campfire_room_join_callback(gpointer data, PurpleSslConnection *gsc,
 		//call this method again periodically to check for new users
 		conn->message_timer = purple_timeout_add_seconds(3, (GSourceFunc)campfire_room_check, conn);		
 
-		//campfire_fetch_first_messages(conn);
 	}
 }
 
