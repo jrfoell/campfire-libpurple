@@ -531,7 +531,7 @@ void campfire_room_join_callback(gpointer data, PurpleSslConnection *gsc,
 		//PurpleConversation *convo = purple_conversation_new(PURPLE_CONV_TYPE_CHAT, purple_connection_get_account(conn->gc), conn->room_name);
 		//purple_debug_info("campfire", "Conversation new: %p\n", convo);
 		//purple_conversation_present(convo);
-		serv_got_joined_chat(conn->gc, 1, conn->room_name);
+		serv_got_joined_chat(conn->gc, id, conn->room_name);
 		id++;
 		
 		campfire_room_check(conn);
