@@ -2,6 +2,7 @@
 #include <string.h>
 #include <glib/gi18n.h>
 #include <errno.h>
+#include <time.h>
 
 //purple includes
 #include <xmlnode.h>
@@ -317,6 +318,7 @@ void campfire_userlist_callback(gpointer data, PurpleSslConnection *gsc,
 	CampfireConn *conn = xaction->campfire;
 	PurpleConversation *convo;
 	xmlnode *xmlroom = NULL;
+	xmlnode *xmltopic = NULL;
 	xmlnode *xmlusers = NULL;
 	xmlnode *xmluser = NULL;
 	
@@ -324,6 +326,11 @@ void campfire_userlist_callback(gpointer data, PurpleSslConnection *gsc,
 	{
 		purple_debug_info("campfire", "locating room: %s\n", conn->room_name);
 		convo = purple_find_conversation_with_account(PURPLE_CONV_TYPE_ANY, conn->room_name, purple_connection_get_account(conn->gc));
+
+		xmltopic = xmlnode_get_child(xmlroom, "topic");
+		gchar *topic = xmlnode_get_data(xmltopic);
+		purple_debug_info("campfire", "setting topic to %s\n", topic);
+		purple_conv_chat_set_topic(PURPLE_CONV_CHAT(convo), NULL, topic);
 		xmlusers = xmlnode_get_child(xmlroom, "users");
 		xmluser = xmlnode_get_child(xmlusers, "user");
 		GList *users = NULL;
@@ -385,7 +392,6 @@ void campfire_userlist_callback(gpointer data, PurpleSslConnection *gsc,
 
 		//g_list_free(chatusers);
 	}
-	
 }
 
 gboolean campfire_room_check(gpointer data)	
@@ -432,11 +438,11 @@ void campfire_message_callback(gpointer data, PurpleSslConnection *gsc,
 			xmlnode *xmluser_id = xmlnode_get_child(xmlmessage, "user-id");
 			gchar *user_id = xmlnode_get_data(xmluser_id);
 			xmlnode *xmltime = xmlnode_get_child(xmlmessage, "created-at");
-			GTimeVal time;
+			GTimeVal timeval;
 			time_t mtime = 0;
-			if(g_time_val_from_iso8601(xmlnode_get_data(xmltime), &time))
+			if(g_time_val_from_iso8601(xmlnode_get_data(xmltime), &timeval))
 			{
-				mtime = time.tv_sec;
+				mtime = timeval.tv_sec;
 			}
 									
 			gchar *msgtype = xmlnode_get_data(xmltype);
@@ -457,13 +463,35 @@ void campfire_message_callback(gpointer data, PurpleSslConnection *gsc,
 			}
 			else
 			{
-				purple_debug_info("campfire", "Writing text message \"%s\" to conversation %p\n", body, convo);
-				purple_conversation_write(convo, user_id, body, PURPLE_MESSAGE_RECV, mtime);
-/*
-				purple_conv_chat_write(PURPLE_CONV_CHAT(convo), "Justin Foell",
-									   body, PURPLE_MESSAGE_RECV,
-									   mtime);
-*/
+				/* NONE OF THIS WORKS RIGHT NOW */
+				const char *username = "";
+				//purple_connection_get_display_name(conn->gc); //current user
+
+				if (purple_conversation_get_type(convo) == PURPLE_CONV_TYPE_IM)
+				{
+					purple_debug_info("campfire", "Writing IM message \"%s\" to %p from name %s\n", body, convo, username);
+					purple_conv_im_write(PURPLE_CONV_IM(convo), "", body, PURPLE_MESSAGE_SYSTEM|PURPLE_MESSAGE_NO_LOG, time(NULL));
+				}
+				else
+				{
+					purple_debug_info("campfire", "Writing chat message \"%s\" to %p from name %s\n", body, convo, username);
+					purple_conversation_write(convo, NULL, "wtf",
+											  PURPLE_MESSAGE_SYSTEM | PURPLE_MESSAGE_NO_LINKIFY,
+											  time(NULL));
+					//purple_conv_chat_write(PURPLE_CONV_CHAT(convo), "", body, PURPLE_MESSAGE_SYSTEM|PURPLE_MESSAGE_NO_LOG, time(NULL));
+				}
+
+
+				
+				//PurpleConvChat *chat = PURPLE_CONV_CHAT(convo);
+				//purple_debug_info("campfire", "Chat nick %s\n", chat->nick);
+				//purple_conv_im_write(PURPLE_CONV_IM(convo), username, body, PURPLE_MESSAGE_RECV, mtime);
+				//purple_conv_chat_write(PURPLE_CONV_CHAT(convo), username, body, PURPLE_MESSAGE_RECV, mtime);
+				//purple_conv_chat_write(PURPLE_CONV_CHAT(convo), username, body, PURPLE_MESSAGE_SYSTEM, time(NULL));
+				//purple_conversation_write(convo, username, body, PURPLE_MESSAGE_RECV, mtime);
+				
+				//convo->ui_ops->write_chat(convo, user_id, body, PURPLE_MESSAGE_RECV, mtime);
+
 			}
 			xmlmessage = xmlnode_get_next_twin(xmlmessage);
 		}
@@ -498,14 +526,16 @@ void campfire_room_join_callback(gpointer data, PurpleSslConnection *gsc,
 	
 	if (campfire_http_response(xaction, cond, NULL) == CAMPFIRE_HTTP_RESPONSE_STATUS_OK_NO_XML)
 	{
-		campfire_room_check(conn);
-		campfire_fetch_first_messages(conn);
-
 		purple_debug_info("campfire", "joining room: %s\n", conn->room_name);
-		purple_conversation_new(PURPLE_CONV_TYPE_CHAT, purple_connection_get_account(conn->gc), conn->room_name);		
+		PurpleConversation *convo = purple_conversation_new(PURPLE_CONV_TYPE_CHAT, purple_connection_get_account(conn->gc), conn->room_name);
+		purple_debug_info("campfire", "Conversation new: %p\n", convo);
+		//purple_conversation_present(convo);
+		
+		campfire_room_check(conn);
+		//campfire_fetch_first_messages(conn);
 
-		//call this method again periodically to check for new users
-		conn->message_timer = purple_timeout_add_seconds(3, (GSourceFunc)campfire_room_check, conn);		
+		//call this function again periodically to check for new users
+		conn->message_timer = purple_timeout_add_seconds(3, (GSourceFunc)campfire_room_check, conn);
 
 	}
 }
@@ -534,7 +564,7 @@ void campfire_room_join(CampfireConn *conn)
 	g_string_free(uri, TRUE);
 	
 	//set up a refresh timer now that we're joined
-	conn->message_timer = purple_timeout_add_seconds(3, (GSourceFunc)campfire_fetch_latest_messages, conn);
+	//conn->message_timer = purple_timeout_add_seconds(3, (GSourceFunc)campfire_fetch_latest_messages, conn);
 }
 
 /*

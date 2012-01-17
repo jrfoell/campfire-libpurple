@@ -62,5 +62,8 @@ void campfire_room_query(CampfireConn *campfire);
 void campfire_room_join(CampfireConn *campfire);
 void campfire_curl_room_query(CampfireConn *campfire);
 
+//internal functions
+void campfire_fetch_first_messages(CampfireConn *conn);
+
 #endif /* not MESSAGE_H */
 

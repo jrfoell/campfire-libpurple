@@ -187,7 +187,7 @@ const char *campfireim_list_icon(PurpleAccount *account, PurpleBuddy *buddy)
 
 static PurplePluginProtocolInfo campfire_protocol_info = {
 	/* options */
-	OPT_PROTO_NO_PASSWORD | OPT_PROTO_SLASH_COMMANDS_NATIVE,
+	OPT_PROTO_CHAT_TOPIC | OPT_PROTO_NO_PASSWORD | OPT_PROTO_SLASH_COMMANDS_NATIVE,
 	NULL,                   /* user_splits */
 	NULL,                   /* protocol_options */
 	{   /* icon_spec, a PurpleBuddyIconSpec */
