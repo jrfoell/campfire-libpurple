@@ -35,8 +35,7 @@ typedef struct _CampfireConn {
 	PurpleConnection *gc;
 	PurpleSslConnection *gsc;
 	gchar *hostname;
-	gchar *room_id;
-	gchar *room_name;
+	GHashTable *rooms;
 	guint message_timer;	
 } CampfireConn;
 
@@ -48,6 +47,7 @@ typedef struct _CampfireSslTransaction {
 	GString *http_response;
 	PurpleSslInputFunction response_cb;
 	gpointer response_cb_data;
+	gchar *room_id;
 } CampfireSslTransaction;
 
 typedef struct _CampfireRawMessage {
@@ -59,11 +59,11 @@ typedef struct _CampfireRawMessage {
 void campfire_renew_connection(CampfireSslTransaction *xaction);
 void campfire_message_send(CampfireMessage *cm);
 void campfire_room_query(CampfireConn *campfire);
-void campfire_room_join(CampfireConn *campfire);
+void campfire_room_join(CampfireConn *campfire, gchar *room_id, gchar *room_name);
 void campfire_curl_room_query(CampfireConn *campfire);
 
 //internal functions
-void campfire_fetch_first_messages(CampfireConn *conn);
+void campfire_fetch_first_messages(CampfireConn *campfire, gchar *room_id);
 
 #endif /* not MESSAGE_H */
 

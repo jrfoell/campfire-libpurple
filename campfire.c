@@ -91,7 +91,7 @@ static GList * campfire_statuses(PurpleAccount *acct)
 
 }
 
-GList *campfire_chat_info(PurpleConnection *gc)
+GList * campfire_chat_info(PurpleConnection *gc)
 {
 	GList *m = NULL;
 	struct proto_chat_entry *pce;
@@ -107,14 +107,12 @@ GList *campfire_chat_info(PurpleConnection *gc)
 
 void campfire_join_chat(PurpleConnection *gc, GHashTable *data)
 {
-	CampfireConn *campfire = gc->proto_data;
-	
-	campfire->room_id = g_hash_table_lookup(data, "id");
-	campfire->room_name = g_hash_table_lookup(data, "name");
+	gchar *id = g_hash_table_lookup(data, "id");
+	gchar *name = g_hash_table_lookup(data, "name");
 
-	purple_debug_info("campfire", "trying to JOIN CHAT room id %s\n", campfire->room_id);
+	purple_debug_info("campfire", "trying to JOIN CHAT room id %s\n", id);
 	
-	campfire_room_join(campfire);
+	campfire_room_join(gc->proto_data, id, name);
 }
 
 char *campfire_get_chat_name(GHashTable *data) {

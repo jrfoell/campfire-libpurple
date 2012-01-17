@@ -318,14 +318,17 @@ void campfire_userlist_callback(gpointer data, PurpleSslConnection *gsc,
 	CampfireConn *conn = xaction->campfire;
 	PurpleConversation *convo;
 	xmlnode *xmlroom = NULL;
+	xmlnode *xmlroomname = NULL;
 	xmlnode *xmltopic = NULL;
 	xmlnode *xmlusers = NULL;
 	xmlnode *xmluser = NULL;
 	
 	if(campfire_http_response(xaction, cond, &xmlroom) == CAMPFIRE_HTTP_RESPONSE_STATUS_XML_OK)
 	{
-		purple_debug_info("campfire", "locating room: %s\n", conn->room_name);
-		convo = purple_find_conversation_with_account(PURPLE_CONV_TYPE_ANY, conn->room_name, purple_connection_get_account(conn->gc));
+		xmlroomname = xmlnode_get_child(xmlroom, "name");
+		gchar *room_name = xmlnode_get_data(xmlroomname);
+		purple_debug_info("campfire", "locating room: %s\n", room_name);
+		convo = purple_find_conversation_with_account(PURPLE_CONV_TYPE_ANY, room_name, purple_connection_get_account(conn->gc));
 
 		xmltopic = xmlnode_get_child(xmlroom, "topic");
 		gchar *topic = xmlnode_get_data(xmltopic);
@@ -397,20 +400,26 @@ void campfire_userlist_callback(gpointer data, PurpleSslConnection *gsc,
 gboolean campfire_room_check(gpointer data)	
 {
 	CampfireConn *conn = (CampfireConn *)data;
-	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);
-
-	xaction->campfire = conn;
-	xaction->connect_cb = campfire_do_new_connection_xaction_cb;
-	xaction->connect_cb_data = xaction;
-	xaction->response_cb = campfire_userlist_callback;
-	xaction->response_cb_data = xaction;
 	
-	purple_debug_info("campfire", "checking for users in room: %s\n", conn->room_name);
-	GString *uri = g_string_new("/room/");
-	g_string_append(uri, conn->room_id);
-	g_string_append(uri, ".xml");
-	campfire_http_request(xaction, uri->str, "GET");
-	g_string_free(uri, TRUE);
+	GList *room_ids = g_hash_table_get_keys( conn->rooms );
+	for (; room_ids != NULL; room_ids = room_ids->next)
+	{
+		gchar *room_id = room_ids->data;
+		CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);
+
+		xaction->campfire = conn;
+		xaction->connect_cb = campfire_do_new_connection_xaction_cb;
+		xaction->connect_cb_data = xaction;
+		xaction->response_cb = campfire_userlist_callback;
+		xaction->response_cb_data = xaction;
+	
+		purple_debug_info("campfire", "checking for users in room: %s\n", room_id);
+		GString *uri = g_string_new("/room/");
+		g_string_append(uri, room_id);
+		g_string_append(uri, ".xml");
+		campfire_http_request(xaction, uri->str, "GET");
+		g_string_free(uri, TRUE);
+	}
 	
 	return TRUE;
 }
@@ -426,8 +435,9 @@ void campfire_message_callback(gpointer data, PurpleSslConnection *gsc,
 	
 	if(campfire_http_response(xaction, cond, &xmlmessages) == CAMPFIRE_HTTP_RESPONSE_STATUS_XML_OK)
 	{
-		purple_debug_info("campfire", "retrieving messages from: %s\n", conn->room_name);
-		convo = purple_find_conversation_with_account(PURPLE_CONV_TYPE_ANY, conn->room_name, purple_connection_get_account(conn->gc));
+		gchar *room_name = g_hash_table_lookup(conn->rooms, xaction->room_id);
+		purple_debug_info("campfire", "retrieving messages from: %s\n", room_name);
+		convo = purple_find_conversation_with_account(PURPLE_CONV_TYPE_ANY, room_name, purple_connection_get_account(conn->gc));
 		xmlmessage = xmlnode_get_child(xmlmessages, "message");
 
 		while (xmlmessage != NULL)
@@ -498,14 +508,14 @@ void campfire_message_callback(gpointer data, PurpleSslConnection *gsc,
 	}
 }
 
-void campfire_fetch_first_messages(CampfireConn *conn)
+void campfire_fetch_first_messages(CampfireConn *conn, gchar *room_id)
 {
 	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);
 
 	purple_debug_info("campfire", "campfire_fetch_first_messages\n");
 
 	GString *uri = g_string_new("/room/");
-	g_string_append(uri, conn->room_id);
+	g_string_append(uri, room_id);
 	g_string_append(uri, "/recent.xml?limit=40");
 
 	xaction->campfire = conn;
@@ -513,6 +523,7 @@ void campfire_fetch_first_messages(CampfireConn *conn)
 	xaction->connect_cb_data = xaction;
 	xaction->response_cb = campfire_message_callback;
 	xaction->response_cb_data = xaction;
+	xaction->room_id = room_id;
 
 	campfire_http_request(xaction, uri->str, "GET");
 	g_string_free(uri, TRUE);
@@ -526,17 +537,21 @@ void campfire_room_join_callback(gpointer data, PurpleSslConnection *gsc,
 	
 	if (campfire_http_response(xaction, cond, NULL) == CAMPFIRE_HTTP_RESPONSE_STATUS_OK_NO_XML)
 	{
-		purple_debug_info("campfire", "joining room: %s\n", conn->room_name);
-		PurpleConversation *convo = purple_conversation_new(PURPLE_CONV_TYPE_CHAT, purple_connection_get_account(conn->gc), conn->room_name);
+		gchar *room_name = g_hash_table_lookup(conn->rooms, xaction->room_id);
+		purple_debug_info("campfire", "joining room: %s\n", room_name);
+		PurpleConversation *convo = purple_conversation_new(PURPLE_CONV_TYPE_CHAT, purple_connection_get_account(conn->gc), room_name);
 		purple_debug_info("campfire", "Conversation new: %p\n", convo);
 		//purple_conversation_present(convo);
 		
 		campfire_room_check(conn);
-		//campfire_fetch_first_messages(conn);
+		//campfire_fetch_first_messages(conn, xaction->room_id);
 
-		//call this function again periodically to check for new users
-		conn->message_timer = purple_timeout_add_seconds(3, (GSourceFunc)campfire_room_check, conn);
-
+		//@TODO set this to null once all rooms have been left
+		if(!conn->message_timer)
+		{
+			//call this function again periodically to check for new users
+			conn->message_timer = purple_timeout_add_seconds(3, (GSourceFunc)campfire_room_check, conn);
+		}
 	}
 }
 
@@ -547,18 +562,26 @@ gboolean campfire_fetch_latest_messages(gpointer data)
 	return TRUE;	
 }
 
-void campfire_room_join(CampfireConn *conn)
+void campfire_room_join(CampfireConn *campfire, gchar *id, gchar *name)
 {
 	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);
 	GString *uri = g_string_new("/room/");
-	g_string_append(uri, conn->room_id);
+	g_string_append(uri, id);
 	g_string_append(uri, "/join.xml");
 
-	xaction->campfire = conn;
+	if(!campfire->rooms)
+	{
+		campfire->rooms = g_hash_table_new(NULL, g_str_equal);
+	}
+
+	g_hash_table_replace(campfire->rooms, id, name);
+
+	xaction->campfire = campfire;
 	xaction->connect_cb = campfire_do_new_connection_xaction_cb;
 	xaction->connect_cb_data = xaction;
 	xaction->response_cb = campfire_room_join_callback;
 	xaction->response_cb_data = xaction;
+	xaction->room_id = id;
 
 	campfire_http_request(xaction, uri->str, "POST");
 	g_string_free(uri, TRUE);
