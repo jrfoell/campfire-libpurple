@@ -436,14 +436,14 @@ void campfire_message_callback(gpointer data, PurpleSslConnection *gsc,
 			gchar *body = xmlnode_get_data(xmlbody);
 			xmlnode *xmltype = xmlnode_get_child(xmlmessage, "type");
 			xmlnode *xmluser_id = xmlnode_get_child(xmlmessage, "user-id");
-			gchar *user_id = xmlnode_get_data(xmluser_id);
+			//gchar *user_id = xmlnode_get_data(xmluser_id);
 			xmlnode *xmltime = xmlnode_get_child(xmlmessage, "created-at");
 			GTimeVal timeval;
-			time_t mtime = 0;
-			if(g_time_val_from_iso8601(xmlnode_get_data(xmltime), &timeval))
-			{
-				mtime = timeval.tv_sec;
-			}
+			//time_t mtime;
+			//if(g_time_val_from_iso8601(xmlnode_get_data(xmltime), &timeval))
+			//{
+			//	mtime = timeval.tv_sec;
+			//}
 									
 			gchar *msgtype = xmlnode_get_data(xmltype);
 			
@@ -523,13 +523,16 @@ void campfire_room_join_callback(gpointer data, PurpleSslConnection *gsc,
 {
 	CampfireSslTransaction *xaction = (CampfireSslTransaction *)data;
 	CampfireConn *conn = xaction->campfire;
+	static gint id = 1;
 	
 	if (campfire_http_response(xaction, cond, NULL) == CAMPFIRE_HTTP_RESPONSE_STATUS_OK_NO_XML)
 	{
 		purple_debug_info("campfire", "joining room: %s\n", conn->room_name);
-		PurpleConversation *convo = purple_conversation_new(PURPLE_CONV_TYPE_CHAT, purple_connection_get_account(conn->gc), conn->room_name);
-		purple_debug_info("campfire", "Conversation new: %p\n", convo);
+		//PurpleConversation *convo = purple_conversation_new(PURPLE_CONV_TYPE_CHAT, purple_connection_get_account(conn->gc), conn->room_name);
+		//purple_debug_info("campfire", "Conversation new: %p\n", convo);
 		//purple_conversation_present(convo);
+		serv_got_joined_chat(conn->gc, 1, conn->room_name);
+		id++;
 		
 		campfire_room_check(conn);
 		//campfire_fetch_first_messages(conn);
