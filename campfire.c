@@ -183,6 +183,15 @@ const char *campfireim_list_icon(PurpleAccount *account, PurpleBuddy *buddy)
 	return "campfire";
 }
 
+int campfire_chat_send(PurpleConnection *gc, int id, const char *message,
+                       PurpleMessageFlags flags)
+{
+	PurpleConversation *convo = purple_find_chat(gc, id);
+
+	purple_conv_chat_write(PURPLE_CONV_CHAT(convo), "", message, flags, time(NULL));
+	return 1;
+}
+
 static PurplePluginProtocolInfo campfire_protocol_info = {
 	/* options */
 	OPT_PROTO_CHAT_TOPIC | OPT_PROTO_NO_PASSWORD | OPT_PROTO_SLASH_COMMANDS_NATIVE,
@@ -229,7 +238,7 @@ static PurplePluginProtocolInfo campfire_protocol_info = {
 	NULL,                   /* chat_invite */
 	NULL,                   /* chat_leave */
 	NULL,                   /* chat_whisper */
-	NULL,                   /* chat_send */
+	campfire_chat_send,     /* chat_send */
 	NULL,                   /* keepalive */
 	NULL,                   /* register_user */
 	NULL,                   /* get_cb_info */

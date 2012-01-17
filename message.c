@@ -446,10 +446,10 @@ void campfire_message_callback(gpointer data, PurpleSslConnection *gsc,
 			gchar *body = xmlnode_get_data(xmlbody);
 			xmlnode *xmltype = xmlnode_get_child(xmlmessage, "type");
 			xmlnode *xmluser_id = xmlnode_get_child(xmlmessage, "user-id");
-			gchar *user_id = xmlnode_get_data(xmluser_id);
+			//gchar *user_id = xmlnode_get_data(xmluser_id);
 			xmlnode *xmltime = xmlnode_get_child(xmlmessage, "created-at");
 			GTimeVal timeval;
-			time_t mtime = 0;
+			time_t mtime;
 			if(g_time_val_from_iso8601(xmlnode_get_data(xmltime), &timeval))
 			{
 				mtime = timeval.tv_sec;
@@ -477,19 +477,10 @@ void campfire_message_callback(gpointer data, PurpleSslConnection *gsc,
 				const char *username = "";
 				//purple_connection_get_display_name(conn->gc); //current user
 
-				if (purple_conversation_get_type(convo) == PURPLE_CONV_TYPE_IM)
-				{
-					purple_debug_info("campfire", "Writing IM message \"%s\" to %p from name %s\n", body, convo, username);
-					purple_conv_im_write(PURPLE_CONV_IM(convo), "", body, PURPLE_MESSAGE_SYSTEM|PURPLE_MESSAGE_NO_LOG, time(NULL));
-				}
-				else
-				{
-					purple_debug_info("campfire", "Writing chat message \"%s\" to %p from name %s\n", body, convo, username);
-					purple_conversation_write(convo, NULL, "wtf",
-											  PURPLE_MESSAGE_SYSTEM | PURPLE_MESSAGE_NO_LINKIFY,
-											  time(NULL));
-					//purple_conv_chat_write(PURPLE_CONV_CHAT(convo), "", body, PURPLE_MESSAGE_SYSTEM|PURPLE_MESSAGE_NO_LOG, time(NULL));
-				}
+				purple_debug_info("campfire", "Writing chat message \"%s\" to %p from name %s\n", body, convo, username);
+				purple_conversation_write(convo, NULL, body,
+											  PURPLE_MESSAGE_RECV,
+											  mtime);
 
 
 				
@@ -539,12 +530,10 @@ void campfire_room_join_callback(gpointer data, PurpleSslConnection *gsc,
 	{
 		gchar *room_name = g_hash_table_lookup(conn->rooms, xaction->room_id);
 		purple_debug_info("campfire", "joining room: %s\n", room_name);
-		PurpleConversation *convo = purple_conversation_new(PURPLE_CONV_TYPE_CHAT, purple_connection_get_account(conn->gc), room_name);
-		purple_debug_info("campfire", "Conversation new: %p\n", convo);
-		//purple_conversation_present(convo);
+		serv_got_joined_chat(conn->gc, g_ascii_strtoll(xaction->room_id, NULL, 10), room_name);
 		
 		campfire_room_check(conn);
-		//campfire_fetch_first_messages(conn, xaction->room_id);
+		campfire_fetch_first_messages(conn, xaction->room_id);
 
 		//@TODO set this to null once all rooms have been left
 		if(!conn->message_timer)
