@@ -394,6 +394,10 @@ void campfire_userlist_callback(gpointer data, PurpleSslConnection *gsc,
 		}
 
 		//g_list_free(chatusers);
+		xmlnode *xmlroomid = xmlnode_get_child(xmlroom, "id");
+		gchar *room_id = xmlnode_get_data(xmlroomid);
+		purple_debug_info("campfire", "about to fetch message for room %s\n", room_id);		
+		campfire_fetch_first_messages(conn, room_id);
 	}
 }
 
@@ -446,7 +450,7 @@ void campfire_message_callback(gpointer data, PurpleSslConnection *gsc,
 			gchar *body = xmlnode_get_data(xmlbody);
 			xmlnode *xmltype = xmlnode_get_child(xmlmessage, "type");
 			xmlnode *xmluser_id = xmlnode_get_child(xmlmessage, "user-id");
-			//gchar *user_id = xmlnode_get_data(xmluser_id);
+			gchar *user_id = xmlnode_get_data(xmluser_id);
 			xmlnode *xmltime = xmlnode_get_child(xmlmessage, "created-at");
 			GTimeVal timeval;
 			time_t mtime;
@@ -473,26 +477,12 @@ void campfire_message_callback(gpointer data, PurpleSslConnection *gsc,
 			}
 			else
 			{
-				/* NONE OF THIS WORKS RIGHT NOW */
-				const char *username = "";
-				//purple_connection_get_display_name(conn->gc); //current user
+				gchar *username = campfire_get_username(conn, user_id);
 
 				purple_debug_info("campfire", "Writing chat message \"%s\" to %p from name %s\n", body, convo, username);
-				purple_conversation_write(convo, NULL, body,
+				purple_conversation_write(convo, username, body,
 											  PURPLE_MESSAGE_RECV,
 											  mtime);
-
-
-				
-				//PurpleConvChat *chat = PURPLE_CONV_CHAT(convo);
-				//purple_debug_info("campfire", "Chat nick %s\n", chat->nick);
-				//purple_conv_im_write(PURPLE_CONV_IM(convo), username, body, PURPLE_MESSAGE_RECV, mtime);
-				//purple_conv_chat_write(PURPLE_CONV_CHAT(convo), username, body, PURPLE_MESSAGE_RECV, mtime);
-				//purple_conv_chat_write(PURPLE_CONV_CHAT(convo), username, body, PURPLE_MESSAGE_SYSTEM, time(NULL));
-				//purple_conversation_write(convo, username, body, PURPLE_MESSAGE_RECV, mtime);
-				
-				//convo->ui_ops->write_chat(convo, user_id, body, PURPLE_MESSAGE_RECV, mtime);
-
 			}
 			xmlmessage = xmlnode_get_next_twin(xmlmessage);
 		}
@@ -532,7 +522,7 @@ void campfire_room_join_callback(gpointer data, PurpleSslConnection *gsc,
 		purple_debug_info("campfire", "joining room: %s\n", room_name);
 		serv_got_joined_chat(conn->gc, g_ascii_strtoll(xaction->room_id, NULL, 10), room_name);
 		
-		campfire_room_check(conn);
+		//campfire_room_check(conn);
 		campfire_fetch_first_messages(conn, xaction->room_id);
 
 		//@TODO set this to null once all rooms have been left
@@ -560,9 +550,9 @@ void campfire_room_join(CampfireConn *campfire, gchar *id, gchar *name)
 
 	if(!campfire->rooms)
 	{
-		campfire->rooms = g_hash_table_new(NULL, g_str_equal);
+		campfire->rooms = g_hash_table_new(g_str_hash, g_str_equal);
 	}
-
+	purple_debug_info("campfire", "add room to list %s ID: %s\n", name, id);
 	g_hash_table_replace(campfire->rooms, id, name);
 
 	xaction->campfire = campfire;
@@ -579,10 +569,56 @@ void campfire_room_join(CampfireConn *campfire, gchar *id, gchar *name)
 	//conn->message_timer = purple_timeout_add_seconds(3, (GSourceFunc)campfire_fetch_latest_messages, conn);
 }
 
-/*
-gchar* campfire_get_username(gint user_id)
+void campfire_username_callback(gpointer data, PurpleSslConnection *gsc,
+				    PurpleInputCondition cond)
 {
-	static GHashTable *user_table = g_hash_table_new(NULL, g_int_equal);
-}
-*/
+	CampfireSslTransaction *xaction = (CampfireSslTransaction *)data;
+	CampfireConn *conn = xaction->campfire;
+	xmlnode *xmluser = NULL;
+	
+	if(campfire_http_response(xaction, cond, &xmluser) == CAMPFIRE_HTTP_RESPONSE_STATUS_XML_OK)
+	{
+		xmlnode *xmlusername = xmlnode_get_child(xmluser, "name");
+		xmlnode *xmluserid = xmlnode_get_child(xmluser, "id");
 
+		gchar *user_id = xmlnode_get_data(xmluserid);
+		gchar *username = xmlnode_get_data(xmlusername);
+		purple_debug_info("campfire", "adding username %s ID %s\n", username, user_id);
+		g_hash_table_replace(conn->users, user_id, username);
+	}
+}
+
+
+gchar * campfire_get_username(CampfireConn *campfire, gchar *user_id)
+{
+	purple_debug_info("campfire", "campfire_get_username %s\n", user_id);
+
+	if(!campfire->users)
+	{
+		campfire->users = g_hash_table_new(g_str_hash, g_str_equal);
+	}
+
+	gchar *user_name = g_hash_table_lookup(campfire->users, user_id);
+
+	if(!user_name)
+	{
+		CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);
+
+		GString *uri = g_string_new("/users/");
+		g_string_append(uri, user_id);
+		g_string_append(uri, ".xml");
+
+		xaction->campfire = campfire;
+		xaction->connect_cb = campfire_do_new_connection_xaction_cb;
+		xaction->connect_cb_data = xaction;
+		xaction->response_cb = campfire_username_callback;
+		xaction->response_cb_data = xaction;
+
+		campfire->wait = TRUE;
+		//@TODO we need a way to wait on a request before returning
+		campfire_http_request(xaction, uri->str, "GET");
+		user_name = g_hash_table_lookup(campfire->users, user_id);
+	}
+	
+	return user_name;
+}

@@ -36,7 +36,8 @@ typedef struct _CampfireConn {
 	PurpleSslConnection *gsc;
 	gchar *hostname;
 	GHashTable *rooms;
-	guint message_timer;	
+	GHashTable *users;
+	guint message_timer;
 } CampfireConn;
 
 typedef struct _CampfireSslTransaction {
@@ -64,6 +65,7 @@ void campfire_curl_room_query(CampfireConn *campfire);
 
 //internal functions
 void campfire_fetch_first_messages(CampfireConn *campfire, gchar *room_id);
+gchar * campfire_get_username(CampfireConn *campfire, gchar *user_id);
 
 #endif /* not MESSAGE_H */
 
