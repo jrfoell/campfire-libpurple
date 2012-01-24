@@ -124,7 +124,7 @@ void campfire_http_request(CampfireSslTransaction *xaction, gchar *uri, gchar *m
 
 	g_string_append(xaction->http_request, "Accept: */*\r\n\r\n");
 
-	campfire_renew_connection(xaction);
+	//campfire_renew_connection(xaction);
 }
 
 gint campfire_http_response(CampfireSslTransaction *xaction, PurpleInputCondition cond,
@@ -174,8 +174,6 @@ gint campfire_http_response(CampfireSslTransaction *xaction, PurpleInputConditio
 		} else {
 			purple_debug_info("campfire", "LOST CONNECTION\n");
 			purple_debug_info("campfire", "errno: %d\n", errno);
-			purple_ssl_close(conn->gsc);
-			conn->gsc = NULL;
 			if (node) {
 				*node = NULL;
 			}
@@ -254,47 +252,106 @@ gint campfire_http_response(CampfireSslTransaction *xaction, PurpleInputConditio
 	return CAMPFIRE_HTTP_RESPONSE_STATUS_XML_OK;
 }
 
+void ssl_handler(GList **queue, PurpleSslConnection *gsc, PurpleInputCondition cond)
+{	
+	GList *first = g_list_first(*queue);
+	CampfireSslTransaction *xaction;
+	gint status;
+	gboolean cleanup = 1;
+
+	purple_debug_info("campfire", "ssl_handler(): first: %p\n", first);
+	if (!first) {
+		/* oops */
+		purple_ssl_close(gsc);
+	} else {
+		xaction = first->data;
+		status = campfire_http_response(xaction, cond, &(xaction->xml_response));
+		if(    status == CAMPFIRE_HTTP_RESPONSE_STATUS_XML_OK
+		    /*&& xaction->verify_xml_func(node)*/                 ) {
+			xaction->response_cb(xaction, gsc, 0);
+			cleanup = 1;
+		} else if (status == CAMPFIRE_HTTP_RESPONSE_STATUS_LOST_CONNECTION) {
+			cleanup = 1;
+		} else if (status ==  CAMPFIRE_HTTP_RESPONSE_STATUS_DISCONNECTED) {
+			cleanup = 1;
+		} else {
+			cleanup = 0;
+		}
+
+		if (cleanup) {
+			purple_ssl_close(xaction->campfire->gsc);
+			xaction->campfire->gsc = NULL;
+			g_string_free(xaction->http_request, TRUE);
+			g_free(xaction);
+			purple_debug_info("campfire", "removing from queue: length: %d\n",
+			                  g_list_length(*queue));
+			*queue = g_list_remove(*queue, xaction);
+			purple_debug_info("campfire", "removed from queue: length: %d\n",
+			                  g_list_length(*queue));
+			first = g_list_first(*queue);
+			if (first) {
+				xaction = first->data;
+				purple_ssl_write(gsc, xaction->http_request->str, xaction->http_request->len);
+			}
+		}
+			
+	}
+}
+
+void queue_up_transaction(CampfireSslTransaction *xaction, PurpleSslConnection *gsc, PurpleInputCondition cond)
+{
+	static GList *queue = NULL;
+
+	if (!xaction->campfire->gsc) {
+		purple_debug_info("campfire", "new ssl connection\n");
+		xaction->campfire->gsc = purple_ssl_connect(xaction->campfire->account,
+		                                            xaction->campfire->hostname,
+		                                            443,
+		                                            (PurpleSslInputFunction)(queue_up_transaction),
+		                                            campfire_ssl_failure,
+		                                            xaction);
+	} else {
+		purple_debug_info("campfire", "previous ssl connection\n");
+		queue = g_list_append(queue, xaction);
+		purple_debug_info("campfire", "queue length %d\n", g_list_length(queue));
+		if (g_list_length(queue) == 1) {
+			purple_debug_info("campfire", "adding input\n");
+			purple_ssl_input_add(gsc, (PurpleSslInputFunction)(ssl_handler), &queue);
+			purple_debug_info("campfire", "writing request\n");
+			purple_ssl_write(gsc, xaction->http_request->str, xaction->http_request->len);
+		}
+	}
+			
+}
+
 
 //see
 //protocols/jabber/chat.c:864 roomlist_ok_cb() AND
 //protocols/jabber/chat.c:800 roomlist_disco_result_cb()
-void campfire_room_query_callback(gpointer data, PurpleSslConnection *gsc,
+void campfire_room_query_callback(CampfireSslTransaction *xaction, PurpleSslConnection *gsc,
                                   PurpleInputCondition cond)
 {
-	CampfireSslTransaction *xaction = (CampfireSslTransaction *)data;
-	CampfireConn *conn = xaction->campfire;
-	gint status;
-
-	xmlnode *xmlrooms = NULL;
 	xmlnode *xmlroom = NULL;
 
-	//if (conn->roomlist)
-	//	purple_roomlist_unref(conn->roomlist);
-
-	status = campfire_http_response(xaction, cond, &xmlrooms);
-
-	if(status == CAMPFIRE_HTTP_RESPONSE_STATUS_XML_OK)
+	purple_debug_info("campfire", "processing xml...\n");
+	xmlroom = xmlnode_get_child(xaction->xml_response, "room");
+	while (xmlroom != NULL)
 	{
-		purple_debug_info("campfire", "processing xml...\n");
-		xmlroom = xmlnode_get_child(xmlrooms, "room");
-		while (xmlroom != NULL)
-		{
-			xmlnode *xmlname = xmlnode_get_child(xmlroom, "name");
-			gchar *name = xmlnode_get_data(xmlname);
-			xmlnode *xmltopic = xmlnode_get_child(xmlroom, "topic");
-			gchar *topic = xmlnode_get_data(xmltopic);
-			xmlnode *xmlid = xmlnode_get_child(xmlroom, "id");
-			gchar *id = xmlnode_get_data(xmlid);
+		xmlnode *xmlname = xmlnode_get_child(xmlroom, "name");
+		gchar *name = xmlnode_get_data(xmlname);
+		xmlnode *xmltopic = xmlnode_get_child(xmlroom, "topic");
+		gchar *topic = xmlnode_get_data(xmltopic);
+		xmlnode *xmlid = xmlnode_get_child(xmlroom, "id");
+		gchar *id = xmlnode_get_data(xmlid);
 
 	
-			PurpleRoomlistRoom *room = purple_roomlist_room_new(PURPLE_ROOMLIST_ROOMTYPE_ROOM, name, NULL);
-			purple_roomlist_room_add_field(conn->roomlist, room, topic);
-			purple_roomlist_room_add_field(conn->roomlist, room, id);
-			purple_roomlist_room_add(conn->roomlist, room);
-			xmlroom = xmlnode_get_next_twin(xmlroom);
-		}
-		purple_roomlist_set_in_progress(conn->roomlist, FALSE);
-	}		   
+		PurpleRoomlistRoom *room = purple_roomlist_room_new(PURPLE_ROOMLIST_ROOMTYPE_ROOM, name, NULL);
+		purple_roomlist_room_add_field(xaction->campfire->roomlist, room, topic);
+		purple_roomlist_room_add_field(xaction->campfire->roomlist, room, id);
+		purple_roomlist_room_add(xaction->campfire->roomlist, room);
+		xmlroom = xmlnode_get_next_twin(xmlroom);
+	}
+	purple_roomlist_set_in_progress(xaction->campfire->roomlist, FALSE);
 }
 
 void campfire_room_query(CampfireConn *conn)
@@ -304,10 +361,11 @@ void campfire_room_query(CampfireConn *conn)
 	xaction->campfire = conn;
 	xaction->connect_cb = campfire_do_new_connection_xaction_cb;
 	xaction->connect_cb_data = xaction;
-	xaction->response_cb = campfire_room_query_callback;
+	xaction->response_cb = (PurpleSslInputFunction)(campfire_room_query_callback);
 	xaction->response_cb_data = xaction;
 	xaction->http_response = NULL;
 	campfire_http_request(xaction, "/rooms.xml", "GET");
+	queue_up_transaction(xaction, conn->gsc, 0);
 }
 
 
@@ -529,7 +587,7 @@ void campfire_room_join_callback(gpointer data, PurpleSslConnection *gsc,
 		if(!conn->message_timer)
 		{
 			//call this function again periodically to check for new users
-			conn->message_timer = purple_timeout_add_seconds(3, (GSourceFunc)campfire_room_check, conn);
+			//conn->message_timer = purple_timeout_add_seconds(3, (GSourceFunc)campfire_room_check, conn);
 		}
 	}
 }
