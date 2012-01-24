@@ -72,7 +72,7 @@ void campfire_curl_room_query(CampfireConn *campfire);
 
 //internal functions
 void campfire_fetch_first_messages(CampfireConn *campfire, gchar *room_id);
-void campfire_print_prevmsgs(gpointer data, PurpleSslConnection *gsc, PurpleInputCondition cond);
+void campfire_print_prevmsgs(CampfireSslTransaction *xaction, PurpleSslConnection *gsc, PurpleInputCondition cond);
 
 #endif /* not MESSAGE_H */
 

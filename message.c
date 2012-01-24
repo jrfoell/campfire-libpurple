@@ -136,7 +136,7 @@ gint campfire_http_response(CampfireSslTransaction *xaction, PurpleInputConditio
 	 */
 	g_string_append(xaction->http_response, "\n");
 	purple_debug_info("campfire", "HTTP response size: %d bytes\n", size_response);
-	purple_debug_info("campfire", "HTTP response string:\n%s\n", xaction->http_response->str);
+	//purple_debug_info("campfire", "HTTP response string:\n%s\n", xaction->http_response->str);
 
 	/*
 	 *look for the status
@@ -178,11 +178,11 @@ gint campfire_http_response(CampfireSslTransaction *xaction, PurpleInputConditio
 		return CAMPFIRE_HTTP_RESPONSE_STATUS_NO_XML;
 	}
 
-	purple_debug_info("campfire", "raw xml: %s\n", rawxml);
+	//purple_debug_info("campfire", "raw xml: %s\n", rawxml);
 
 	tmpnode = xmlnode_from_str(rawxml, -1);
 	node_str = xmlnode_to_str(tmpnode, NULL);
-	purple_debug_info("campfire", "xml: %s\n", node_str);
+	//purple_debug_info("campfire", "xml: %s\n", node_str);
 	g_free(node_str);
 	g_string_free(xaction->http_response, TRUE);
 	xaction->http_response = NULL;
@@ -382,11 +382,9 @@ void campfire_userlist_callback(CampfireSslTransaction *xaction, PurpleSslConnec
 				purple_debug_info("campfire", "adding user %s to room\n", name);
 				purple_conv_chat_add_user(PURPLE_CONV_CHAT(convo), name, NULL, PURPLE_CBFLAGS_NONE, TRUE);
 			}
-			users = g_list_append(users, name);
+			users = g_list_prepend(users, name);
 			xmluser = xmlnode_get_next_twin(xmluser);
 		}
-		users = g_list_prepend(users, name);
-		xmluser = xmlnode_get_next_twin(xmluser);
 	}
 
 	purple_debug_info("campfire", "Getting all users in room\n");
@@ -456,8 +454,8 @@ gboolean campfire_room_check(gpointer data)
 		g_string_append(uri, room_id);
 		g_string_append(uri, ".xml");
 		campfire_http_request(xaction, uri->str, "GET");
-		g_string_free(uri, TRUE);
 		campfire_queue_xaction(xaction, campfire->gsc, 0);
+		g_string_free(uri, TRUE);
 	}
 	
 	return TRUE;
@@ -470,6 +468,7 @@ void campfire_message_callback(CampfireSslTransaction *xaction, PurpleSslConnect
 	
 	GList *msgs = NULL;
 	xmlmessage = xmlnode_get_child(xaction->xml_response, "message");
+	gchar *room_id = xaction->room_id;
 
 	while (xmlmessage != NULL)
 	{
@@ -488,8 +487,6 @@ void campfire_message_callback(CampfireSslTransaction *xaction, PurpleSslConnect
 								
 		gchar *msgtype = xmlnode_get_data(xmltype);
 		
-		purple_debug_info("campfire", "got message of type: %s\n", msgtype);
-
 		if ( g_strcmp0( msgtype, CAMPFIRE_MESSAGE_ENTER ) == 0 )
 		{
 		}
@@ -504,6 +501,7 @@ void campfire_message_callback(CampfireSslTransaction *xaction, PurpleSslConnect
 		}
 		else
 		{
+			purple_debug_info("campfire", "got message of type: %s\n", msgtype);
 			CampfirePrevMessage *msg = g_new0(CampfirePrevMessage, 1);
 			msg->user_id = user_id;
 			msg->time = mtime;
@@ -516,17 +514,24 @@ void campfire_message_callback(CampfireSslTransaction *xaction, PurpleSslConnect
 	//request the first user_id and print the messages out
 	msgs = g_list_first(msgs);
 	if(msgs)
-	{
+	{		
 		CampfirePrevMessage *msg = msgs->data;
+		purple_debug_info("campfire", "Getting first user_id: %s (and old messages)\n", msg->user_id);
 				
 		GString *uri = g_string_new("/users/");
 		g_string_append(uri, msg->user_id);
 		g_string_append(uri, ".xml");
 
-		//reuse the one passed in
-		xaction->response_cb = campfire_print_prevmsgs;
-		xaction->prev_msgs = msgs;
-		campfire_http_request(xaction, uri->str, "GET");
+		//create a new one
+		CampfireSslTransaction *xaction2 = g_new0(CampfireSslTransaction, 1);
+
+		xaction2->campfire = xaction->campfire;
+		xaction2->response_cb = (PurpleSslInputFunction)campfire_print_prevmsgs;
+		xaction2->response_cb_data = xaction;
+		xaction2->prev_msgs = msgs;
+		xaction2->room_id = room_id;
+		campfire_http_request(xaction2, uri->str, "GET");
+		campfire_queue_xaction(xaction2, xaction->campfire->gsc, 0);
 	}
 }
 
@@ -564,7 +569,7 @@ void campfire_room_join_callback(CampfireSslTransaction *xaction, PurpleSslConne
 	if(!xaction->campfire->message_timer)
 	{
 		//call this function again periodically to check for new users
-		//xaction->campfire->message_timer = purple_timeout_add_seconds(3, (GSourceFunc)campfire_room_check, xaction->campfire);
+		xaction->campfire->message_timer = purple_timeout_add_seconds(3, (GSourceFunc)campfire_room_check, xaction->campfire);
 	}
 }
 
@@ -603,10 +608,10 @@ void campfire_room_join(CampfireConn *campfire, gchar *id, gchar *name)
 }
 
 /** also functions as a callback (to itself) */
-void campfire_print_prevmsgs(gpointer data, PurpleSslConnection *gsc,
+void campfire_print_prevmsgs(CampfireSslTransaction *xaction, PurpleSslConnection *gsc,
 				    PurpleInputCondition cond)
 {
-	CampfireSslTransaction *xaction = (CampfireSslTransaction *)data;
+	purple_debug_info("campfire", "campfire_print_prevmsgs()\n");
 	CampfireConn *campfire = xaction->campfire;
 
 	//initialize user list
@@ -618,9 +623,8 @@ void campfire_print_prevmsgs(gpointer data, PurpleSslConnection *gsc,
 	//handle possible user response (if used as a callback)
 	if(xaction->xml_response)
 	{
-		xmlnode *xmluser = xmlnode_get_child(xaction->xml_response, "user");
-		xmlnode *xmlusername = xmlnode_get_child(xmluser, "name");
-		xmlnode *xmluserid = xmlnode_get_child(xmluser, "id");
+		xmlnode *xmlusername = xmlnode_get_child(xaction->xml_response, "name");
+		xmlnode *xmluserid = xmlnode_get_child(xaction->xml_response, "id");
 
 		gchar *user_id = xmlnode_get_data(xmluserid);
 		gchar *username = xmlnode_get_data(xmlusername);
@@ -637,19 +641,28 @@ void campfire_print_prevmsgs(gpointer data, PurpleSslConnection *gsc,
 		CampfirePrevMessage *msg = first->data;
 
 		gchar *user_name = g_hash_table_lookup(campfire->users, msg->user_id);
+		
+		purple_debug_info("campfire", "Looked up user_id: %s, got %s\n", msg->user_id, user_name);
 
 		if(!user_name)
 		{
 			GString *uri = g_string_new("/users/");
 			g_string_append(uri, msg->user_id);
 			g_string_append(uri, ".xml");
-
-			campfire_http_request(xaction, uri->str, "GET");
 			
+			//create a new one
+			CampfireSslTransaction *xaction2 = g_new0(CampfireSslTransaction, 1);
+
+			xaction2->campfire = xaction->campfire;
+			xaction2->response_cb = (PurpleSslInputFunction)campfire_print_prevmsgs;
+			xaction2->response_cb_data = xaction;
+			xaction2->prev_msgs = xaction->prev_msgs;
+			xaction2->room_id = xaction->room_id;
+			campfire_http_request(xaction2, uri->str, "GET");
+			campfire_queue_xaction(xaction2, campfire->gsc, 0);
 		} else {
 			//print
 			gchar *room_name = g_hash_table_lookup(campfire->rooms, xaction->room_id);
-			purple_debug_info("campfire", "retrieving messages from: %s\n", room_name);
 			PurpleConversation *convo = purple_find_conversation_with_account(PURPLE_CONV_TYPE_ANY, room_name, purple_connection_get_account(xaction->campfire->gc));
 
 			purple_debug_info("campfire", "Writing chat message \"%s\" to %p from name %s\n", msg->message, convo, user_name);
@@ -658,6 +671,7 @@ void campfire_print_prevmsgs(gpointer data, PurpleSslConnection *gsc,
 							  msg->time);
 			
 			xaction->prev_msgs = g_list_remove(xaction->prev_msgs, msg);
+			xaction->xml_response = NULL;
 			//recurse
 			campfire_print_prevmsgs(xaction, gsc, cond);
 		}
