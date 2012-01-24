@@ -196,17 +196,25 @@ void campfire_ssl_handler(GList **queue, PurpleSslConnection *gsc, PurpleInputCo
 {	
 	GList *first = g_list_first(*queue);
 	CampfireSslTransaction *xaction;
+	static CampfireConn *campfire = NULL;
 	gint status;
 	gboolean close_ssl = FALSE;
 	gboolean cleanup = TRUE;
 
 	purple_debug_info("campfire", "campfire_ssl_handler(): first: %p\n", first);
 	if (!first) {
-		/* oops */
-		purple_debug_info("campfire", "not first element in queue -- INVESTIGATE\n");
+		/* this situation will occur when the server closes the
+		 * connection after the last transaction.  Possibly others?
+		 */
+		purple_debug_info("campfire", "Connection closed, nothing left in queue, cleaning up connection\n");
 		purple_ssl_close(gsc);
+		if (campfire)
+		{
+			campfire->gsc = NULL;
+		}
 	} else {
 		xaction = first->data;
+		campfire = xaction->campfire;
 		status = campfire_http_response(xaction, cond, &(xaction->xml_response));
 		if(    status == CAMPFIRE_HTTP_RESPONSE_STATUS_XML_OK
 		    || status == CAMPFIRE_HTTP_RESPONSE_STATUS_OK_NO_XML )
