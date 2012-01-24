@@ -56,6 +56,12 @@ typedef struct _CampfireRawMessage {
   gsize size;
 } CampfireRawMessage;
 
+/* */
+typedef struct _CampfirePrevMessage {
+	gchar *message;
+	time_t time;
+	gchar *user_id;
+} CampfirePrevMessage;
 
 void campfire_renew_connection(CampfireSslTransaction *xaction);
 void campfire_message_send(CampfireMessage *cm);
