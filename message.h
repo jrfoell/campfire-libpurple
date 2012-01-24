@@ -48,6 +48,7 @@ typedef struct _CampfireSslTransaction {
 	PurpleSslInputFunction response_cb;
 	gpointer response_cb_data;
 	gchar *room_id;
+	xmlnode *xml_response;
 } CampfireSslTransaction;
 
 typedef struct _CampfireRawMessage {
