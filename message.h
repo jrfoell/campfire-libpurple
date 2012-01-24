@@ -42,8 +42,6 @@ typedef struct _CampfireConn {
 
 typedef struct _CampfireSslTransaction {
 	CampfireConn *campfire;
-	PurpleSslInputFunction connect_cb;
-	gpointer connect_cb_data;
 	GString *http_request;
 	GString *http_response;
 	PurpleSslInputFunction response_cb;
