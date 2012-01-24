@@ -48,8 +48,10 @@ typedef struct _CampfireSslTransaction {
 	GString *http_response;
 	PurpleSslInputFunction response_cb;
 	gpointer response_cb_data;
-	gchar *room_id;
 	xmlnode *xml_response;
+	//optional
+	gchar *room_id;
+	GList *prev_msgs;
 } CampfireSslTransaction;
 
 typedef struct _CampfireRawMessage {
@@ -72,7 +74,7 @@ void campfire_curl_room_query(CampfireConn *campfire);
 
 //internal functions
 void campfire_fetch_first_messages(CampfireConn *campfire, gchar *room_id);
-gchar * campfire_get_username(CampfireConn *campfire, gchar *user_id);
+void campfire_print_prevmsgs(gpointer data, PurpleSslConnection *gsc, PurpleInputCondition cond);
 
 #endif /* not MESSAGE_H */
 
