@@ -14,11 +14,6 @@
 #define	CAMPFIRE_MESSAGE_TIME "TimestampMessage"
 #define	CAMPFIRE_MESSAGE_KICK "KickMessage"
 
-typedef struct _CampfireMessage {
-	gchar *type;
-	gchar *body;
-} CampfireMessage;
-
 enum http_response_status {
 	CAMPFIRE_HTTP_RESPONSE_STATUS_XML_OK,
 	CAMPFIRE_HTTP_RESPONSE_STATUS_OK_NO_XML,
@@ -49,20 +44,23 @@ typedef struct _CampfireSslTransaction {
 	xmlnode *xml_response;
 	//optional
 	gchar *room_id;
-	GList *prev_msgs;
+	GList *messages;
+	gboolean first_check;
 } CampfireSslTransaction;
 
-typedef struct _CampfireRawMessage {
-  gchar *message;
-  gsize size;
-} CampfireRawMessage;
-
-/* */
-typedef struct _CampfirePrevMessage {
+typedef struct _CampfireMessage {
+	gchar *id;
+	gchar *type;
 	gchar *message;
 	time_t time;
 	gchar *user_id;
-} CampfirePrevMessage;
+} CampfireMessage;
+
+typedef struct _CampfireRoom {
+	gchar *id;
+	gchar *name;
+	gchar *last_message_id;	
+} CampfireRoom;
 
 void campfire_renew_connection(CampfireSslTransaction *xaction);
 void campfire_message_send(CampfireMessage *cm);
@@ -72,7 +70,8 @@ void campfire_curl_room_query(CampfireConn *campfire);
 
 //internal functions
 void campfire_fetch_first_messages(CampfireConn *campfire, gchar *room_id);
-void campfire_print_prevmsgs(CampfireSslTransaction *xaction, PurpleSslConnection *gsc, PurpleInputCondition cond);
+void campfire_print_messages(CampfireSslTransaction *xaction, PurpleSslConnection *gsc, PurpleInputCondition cond);
+void campfire_message_callback(CampfireSslTransaction *xaction, PurpleSslConnection *gsc, PurpleInputCondition cond);
 
 #endif /* not MESSAGE_H */
 
