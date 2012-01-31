@@ -115,6 +115,13 @@ void campfire_join_chat(PurpleConnection *gc, GHashTable *data)
 	campfire_room_join(gc->proto_data, id, name);
 }
 
+void campfire_chat_leave(PurpleConnection *gc, int id)
+{
+	purple_debug_info("campfire", "leaving CHAT room id %d\n", id);
+	
+	campfire_room_leave(gc->proto_data, id);
+}
+
 char *campfire_get_chat_name(GHashTable *data) {
 	return g_strdup(g_hash_table_lookup(data, "room"));
 }
@@ -214,9 +221,9 @@ static PurplePluginProtocolInfo campfire_protocol_info = {
 	NULL,                   /* blist_node_menu */
 	campfire_chat_info,     /* chat_info */
 	NULL,                   /* chat_info_defaults */
-	campfire_login,       	/* login */
-	campfire_close,       	/* close */
-	NULL,     		        /* send_im */
+	campfire_login,         /* login */
+	campfire_close,         /* close */
+	NULL,                   /* send_im */
 	NULL,                   /* set_info */
 	NULL,                   /* send_typing */
 	NULL,                   /* get_info */
@@ -236,7 +243,7 @@ static PurplePluginProtocolInfo campfire_protocol_info = {
 	NULL,                   /* reject chat invite */
 	campfire_get_chat_name, /* get_chat_name */
 	NULL,                   /* chat_invite */
-	NULL,                   /* chat_leave */
+	campfire_chat_leave,    /* chat_leave */
 	NULL,                   /* chat_whisper */
 	campfire_chat_send,     /* chat_send */
 	NULL,                   /* keepalive */
@@ -246,7 +253,7 @@ static PurplePluginProtocolInfo campfire_protocol_info = {
 	NULL,                   /* alias_buddy */
 	NULL,                   /* group_buddy */
 	NULL,                   /* rename_group */
-	campfire_buddy_free,	/* buddy_free */
+	campfire_buddy_free,    /* buddy_free */
 	NULL,                   /* convo_closed */
 	purple_normalize_nocase,/* normalize */
 	NULL,                   /* set_buddy_icon */

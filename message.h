@@ -66,6 +66,7 @@ void campfire_renew_connection(CampfireSslTransaction *xaction);
 void campfire_message_send(CampfireMessage *cm);
 void campfire_room_query(CampfireConn *campfire);
 void campfire_room_join(CampfireConn *campfire, gchar *room_id, gchar *room_name);
+void campfire_room_leave(CampfireConn *campfire, gint id);
 void campfire_curl_room_query(CampfireConn *campfire);
 
 //internal functions
