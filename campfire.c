@@ -170,11 +170,12 @@ PurpleRoomlist * campfire_roomlist_get_list(PurpleConnection *gc)
 void campfire_roomlist_cancel(PurpleRoomlist *list)
 {
 	PurpleConnection *gc = purple_account_get_connection(list->account);
-
+	CampfireConn *campfire = NULL;
+	
 	if (gc == NULL)
 		return;
 
-	CampfireConn *campfire = gc->proto_data;
+	campfire = gc->proto_data;
 
 	purple_roomlist_set_in_progress(list, FALSE);
 
@@ -193,9 +194,7 @@ const char * campfireim_list_icon(PurpleAccount *account, PurpleBuddy *buddy)
 int campfire_chat_send(PurpleConnection *gc, int id, const char *message,
                        PurpleMessageFlags flags)
 {
-	CampfireConn *campfire = gc->proto_data;
-
-	campfire_message_send(campfire, id, message);
+	campfire_message_send(gc->proto_data, id, message);
 	return 1;
 }
 
