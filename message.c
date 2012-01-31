@@ -200,13 +200,11 @@ void campfire_ssl_handler(GList **queue, PurpleSslConnection *gsc, PurpleInputCo
 		 * connection after the last transaction.  Possibly others?
 		 */
 		purple_debug_info("campfire", "Nothing left in HTTP queue\n");		
-		/*
 		purple_ssl_close(gsc);
 		if (campfire)
 		{
 			campfire->gsc = NULL;
 		}
-		*/
 	}
 	else
 	{
@@ -601,9 +599,9 @@ void campfire_message_callback(CampfireSslTransaction *xaction, PurpleSslConnect
 
 	xaction2->campfire = xaction->campfire;
 	xaction2->response_cb = (PurpleSslInputFunction)campfire_print_messages;
-	xaction2->response_cb_data = xaction;
+	xaction2->response_cb_data = xaction2;
 	xaction2->messages = msgs;
-	xaction2->room_id = room_id;
+	xaction2->room_id = g_strdup(room_id);
 	xaction2->first_check = xaction->first_check;
 
 	campfire_print_messages(xaction2, xaction->campfire->gsc, 0);
@@ -663,6 +661,7 @@ void campfire_room_join(CampfireConn *campfire, gchar *id, gchar *name)
 	xaction->response_cb = (PurpleSslInputFunction)campfire_room_join_callback;
 	xaction->response_cb_data = xaction;
 	xaction->room_id = g_strdup(id);
+	purple_debug_info("campfire", "ID: %s\n", xaction->room_id);
 
 	campfire_http_request(xaction, uri->str, "POST", NULL);
 	g_string_free(uri, TRUE);
@@ -729,7 +728,7 @@ void campfire_print_messages(CampfireSslTransaction *xaction, PurpleSslConnectio
 		//print the user as "in the room" after the previous messages have been printed
 		//(only if this is the first message check [cond == 1 hint])
 		if(xaction->first_check)
-			//campfire_room_check(campfire);
+			campfire_room_check(campfire);
 		
 		//maybe cleanup here?
 		purple_debug_info("campfire", "no more messages to process\n");
@@ -751,9 +750,9 @@ void campfire_print_messages(CampfireSslTransaction *xaction, PurpleSslConnectio
 
 			xaction2->campfire = xaction->campfire;
 			xaction2->response_cb = (PurpleSslInputFunction)campfire_print_messages;
-			xaction2->response_cb_data = xaction;
+			xaction2->response_cb_data = xaction2;
 			xaction2->messages = xaction->messages;
-			xaction2->room_id = xaction->room_id;
+			xaction2->room_id = g_strdup(xaction->room_id);
 			xaction2->first_check = xaction->first_check;
 			
 			campfire_http_request(xaction2, uri->str, "GET", NULL);
@@ -762,6 +761,7 @@ void campfire_print_messages(CampfireSslTransaction *xaction, PurpleSslConnectio
 			//print
 			purple_debug_info("campfire", "not crashed yet\n");
 			CampfireRoom *room = g_hash_table_lookup(campfire->rooms, xaction->room_id);
+			purple_debug_info("campfire", "not crashed yet 1.5 %s\n", xaction->room_id);
 			PurpleConversation *convo = purple_find_conversation_with_account(PURPLE_CONV_TYPE_ANY, room->name, purple_connection_get_account(xaction->campfire->gc));
 			purple_debug_info("campfire", "not crashed yet 2\n");
 
