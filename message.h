@@ -65,6 +65,7 @@ typedef struct _CampfireRoom {
 void campfire_message_send(CampfireConn *campfire, int id, const char *message);
 void campfire_room_query(CampfireConn *campfire);
 void campfire_room_join(CampfireConn *campfire, gchar *room_id, gchar *room_name);
+void campfire_room_leave(CampfireConn *campfire, gint id);
 
 //internal functions
 void campfire_fetch_first_messages(CampfireConn *campfire, gchar *room_id);
