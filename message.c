@@ -19,11 +19,11 @@ void campfire_ssl_failure(PurpleSslConnection *gsc, PurpleSslErrorType error, gp
 	purple_debug_info("campfire", "ssl connect failure\n");
 }
 
-void campfire_http_request(CampfireSslTransaction *xaction, gchar *uri, gchar *method, gchar *postbody)
+void campfire_http_request(CampfireSslTransaction *xaction, gchar *uri, gchar *method, xmlnode *postxml)
 {
 	CampfireConn *conn = xaction->campfire;
-	const char *api_token = purple_account_get_string(conn->account,
-			"api_token", "");
+	const char *api_token = purple_account_get_string(conn->account, "api_token", "");
+	gchar *xmlstr;
 
 	xaction->http_request = g_string_new(method);
 	g_string_append(xaction->http_request, " ");
@@ -45,11 +45,15 @@ void campfire_http_request(CampfireSslTransaction *xaction, gchar *uri, gchar *m
 
 	g_string_append(xaction->http_request, "Accept: */*\r\n\r\n");
 
-	if(postbody)
+	if(postxml)
 	{
-		g_string_append(xaction->http_request, postbody);		
-		g_string_append(xaction->http_request, "\r\n\r\n");
-	}	
+		xmlstr = xmlnode_to_str(postxml, NULL);
+		g_string_append(xaction->http_request, "Content-Type: text/xml\r\n");
+		g_string_append(xaction->http_request, "Content-Length: 32\r\n");
+		g_string_append(xaction->http_request, xmlstr);		
+		g_string_append(xaction->http_request, "\r\n");
+	}
+	g_string_append(xaction->http_request, "\r\n");			
 }
 
 gint campfire_http_response(CampfireSslTransaction *xaction, PurpleInputCondition cond,
@@ -328,7 +332,7 @@ void campfire_message_send(CampfireConn *campfire, int id, const char *message)
 
 	purple_debug_info("campfire", "Sending message %s\n", xmlnode_to_str(xmlmessage, NULL));
 		
-	campfire_http_request(xaction, uri->str, "POST", xmlnode_to_str(xmlmessage, NULL));
+	campfire_http_request(xaction, uri->str, "POST", xmlmessage);
 	g_string_free(uri, TRUE);
 	g_free(room_id);
 	xmlnode_free(xmlmessage);
