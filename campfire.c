@@ -115,12 +115,12 @@ void campfire_join_chat(PurpleConnection *gc, GHashTable *data)
 	campfire_room_join(gc->proto_data, id, name);
 }
 
-char *campfire_get_chat_name(GHashTable *data) {
+char * campfire_get_chat_name(GHashTable *data) {
 	return g_strdup(g_hash_table_lookup(data, "room"));
 }
 
 
-PurpleRoomlist *campfire_roomlist_get_list(PurpleConnection *gc)
+PurpleRoomlist * campfire_roomlist_get_list(PurpleConnection *gc)
 {	
 	CampfireConn *campfire = gc->proto_data;
 	GList *fields = NULL;
@@ -178,7 +178,7 @@ void campfire_roomlist_cancel(PurpleRoomlist *list)
 }
 
 
-const char *campfireim_list_icon(PurpleAccount *account, PurpleBuddy *buddy)
+const char * campfireim_list_icon(PurpleAccount *account, PurpleBuddy *buddy)
 {
 	return "campfire";
 }
@@ -186,9 +186,9 @@ const char *campfireim_list_icon(PurpleAccount *account, PurpleBuddy *buddy)
 int campfire_chat_send(PurpleConnection *gc, int id, const char *message,
                        PurpleMessageFlags flags)
 {
-	PurpleConversation *convo = purple_find_chat(gc, id);
+	CampfireConn *campfire = gc->proto_data;
 
-	purple_conv_chat_write(PURPLE_CONV_CHAT(convo), "", message, flags, time(NULL));
+	campfire_message_send(campfire, id, message);
 	return 1;
 }
 
