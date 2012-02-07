@@ -68,7 +68,7 @@ gint campfire_http_response(CampfireSslTransaction *xaction, PurpleInputConditio
 	gchar *xml_header = "<?xml";
 	gchar *content = NULL, *rawxml = NULL, *node_str = NULL, *status_and_after = NULL, *status = NULL;
 	xmlnode *tmpnode = NULL;
-	gint len;
+	gint len, errsv = 0;
 	static gint size_response = 0;
 
 	purple_debug_info("campfire","%s:%d\n", __FUNCTION__, __LINE__);
@@ -87,9 +87,10 @@ gint campfire_http_response(CampfireSslTransaction *xaction, PurpleInputConditio
 	 *       xml each loop with libxml call xmlParseChunk()
 	 */
 	while ((len = purple_ssl_read(conn->gsc, buf, sizeof(buf))) > 0) {
+		errsv = errno;
 		purple_debug_info("campfire",
-				  "read %d bytes from HTTP Response\n",
-				  len);
+				  "read %d bytes from HTTP Response, errno: %i\n",
+						  len, errsv);
 		xaction->http_response = g_string_append_len(xaction->http_response, buf, len);
 		size_response += len;
 	}
@@ -97,7 +98,7 @@ gint campfire_http_response(CampfireSslTransaction *xaction, PurpleInputConditio
 
 
 	if (len < 0) {
-		if (errno == EAGAIN) {
+		if (errsv == EAGAIN) {
 			if (size_response == 0) {
 				purple_debug_info("campfire", "TRY AGAIN\n");
 				return CAMPFIRE_HTTP_RESPONSE_STATUS_TRY_AGAIN;
@@ -107,7 +108,7 @@ gint campfire_http_response(CampfireSslTransaction *xaction, PurpleInputConditio
 			}
 		} else {
 			purple_debug_info("campfire", "LOST CONNECTION\n");
-			purple_debug_info("campfire", "errno: %d\n", errno);
+			purple_debug_info("campfire", "errno: %d\n", errsv);
 			if (node) {
 				*node = NULL;
 			}
@@ -207,9 +208,8 @@ void campfire_ssl_handler(GList **queue, PurpleSslConnection *gsc, PurpleInputCo
 	{
 		CampfireSslTransaction *tmpxaction = g_new0(CampfireSslTransaction, 1);
 		tmpxaction->campfire = campfire;
-		/* this situation will occur when the server closes the
-		 * connection after the last transaction.  Possibly others?
-		 */
+		// this situation will occur when the server closes the
+		// connection after the last transaction.  Possibly others?
 		purple_debug_info("campfire", "checking response\n");		
 		status = campfire_http_response(tmpxaction, cond, &(tmpxaction->xml_response));
 		purple_debug_info("campfire", "Nothing left in HTTP queue\n");		
