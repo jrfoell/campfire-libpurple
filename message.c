@@ -360,7 +360,8 @@ CampfireMessage * campfire_get_message(xmlnode *xmlmessage)
 		
 	if (g_strcmp0(msgtype, CAMPFIRE_MESSAGE_TEXT) == 0 ||
 		g_strcmp0(msgtype, CAMPFIRE_MESSAGE_TWEET) == 0 ||
-		g_strcmp0(msgtype, CAMPFIRE_MESSAGE_PASTE) == 0)
+		g_strcmp0(msgtype, CAMPFIRE_MESSAGE_PASTE) == 0 ||
+		g_strcmp0(msgtype, CAMPFIRE_MESSAGE_SOUND) == 0)
 	{
 		msg->message = body;
 	}
@@ -661,13 +662,16 @@ void campfire_message_callback(CampfireSslTransaction *xaction, PurpleSslConnect
 void campfire_fetch_first_messages(CampfireConn *campfire, gchar *room_id)
 {
 	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);
+	gint limit = purple_account_get_int(campfire->account, "limit", 10);
 	GString *uri = NULL;
 	
 	purple_debug_info("campfire", "%s\n", __FUNCTION__);
 
 	uri = g_string_new("/room/");
 	g_string_append(uri, room_id);
-	g_string_append(uri, "/recent.xml?limit=2");
+	g_string_append(uri, "/recent.xml?limit=");
+	g_string_append(uri, g_strdup_printf("%i", limit));
+	
 
 	xaction->campfire = campfire;
 	xaction->response_cb = (PurpleSslInputFunction)campfire_message_callback;
@@ -887,7 +891,7 @@ void campfire_print_messages(CampfireSslTransaction *xaction, PurpleSslConnectio
 					campfire_http_request(xaction2, uri->str, "GET", NULL);
 					campfire_queue_xaction(xaction2, campfire->gsc, cond);
 					//return here so we can print this message out
-					//again when we've retrieved the upload info
+					//again once we've retrieved the upload info
 					return;
 				}
 				else if(g_strcmp0(msg->type, CAMPFIRE_MESSAGE_TEXT) == 0 ||
@@ -914,10 +918,18 @@ void campfire_print_messages(CampfireSslTransaction *xaction, PurpleSslConnectio
 					{
 						g_string_append(message, " kicked.");
 					}
-					else if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_UPLOAD) == 0 && upload_url)
+					else if(g_strcmp0(msg->type, CAMPFIRE_MESSAGE_UPLOAD) == 0 && upload_url)
 					{
 						g_string_append(message, " uploaded ");
 						g_string_append(message, upload_url);
+					}
+					else if(g_strcmp0(msg->type, CAMPFIRE_MESSAGE_SOUND) == 0)
+					{
+						g_string_append(message, " sounded off https://");
+						g_string_append(message, campfire->hostname);							
+						g_string_append(message, "/sounds/");
+						g_string_append(message, msg->message);	
+						g_string_append(message, ".mp3");					
 					}
 					purple_conversation_write(convo, "", message->str,
 											  PURPLE_MESSAGE_SYSTEM,

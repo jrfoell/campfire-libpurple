@@ -309,13 +309,16 @@ static PurplePluginInfo info = {
 static void plugin_init(PurplePlugin *plugin)
 {
 	PurpleAccountUserSplit *split;
-	PurpleAccountOption *option;
+	PurpleAccountOption *option_token, *option_limit;
 
 	split = purple_account_user_split_new(_("Hostname"), NULL, '@');
 	campfire_protocol_info.user_splits = g_list_append(campfire_protocol_info.user_splits, split);
 
-	option = purple_account_option_string_new(_("API token"), "api_token", NULL);
-	campfire_protocol_info.protocol_options = g_list_append(campfire_protocol_info.protocol_options, option);
+	option_token = purple_account_option_string_new(_("API token"), "api_token", NULL);
+	campfire_protocol_info.protocol_options = g_list_append(campfire_protocol_info.protocol_options, option_token);
+
+	option_limit = purple_account_option_int_new(_("Retrieve # msgs on join"), "limit", 10);
+	campfire_protocol_info.protocol_options = g_list_append(campfire_protocol_info.protocol_options, option_limit);
 }
 
 PURPLE_INIT_PLUGIN(campfire, plugin_init, info);
