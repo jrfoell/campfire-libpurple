@@ -15,6 +15,7 @@
 #define	CAMPFIRE_MESSAGE_KICK "KickMessage"
 #define	CAMPFIRE_MESSAGE_UPLOAD "UploadMessage"
 
+
 enum http_response_status {
 	CAMPFIRE_HTTP_RESPONSE_STATUS_XML_OK,
 	CAMPFIRE_HTTP_RESPONSE_STATUS_OK_NO_XML,
@@ -43,6 +44,7 @@ typedef struct _CampfireSslTransaction {
 	PurpleSslInputFunction response_cb;
 	gpointer response_cb_data;
 	xmlnode *xml_response;
+	gint content_len;
 	//optional
 	gchar *room_id;
 	GList *messages;

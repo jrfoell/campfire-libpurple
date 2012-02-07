@@ -65,8 +65,9 @@ gint campfire_http_response(CampfireSslTransaction *xaction, PurpleInputConditio
 	gchar buf[1024];
 	gchar *blank_line = "\r\n\r\n";
 	gchar *status_header = "\r\nStatus: ";
+	gchar *content_len_header = "\r\nContent-Length: ";
 	gchar *xml_header = "<?xml";
-	gchar *content = NULL, *rawxml = NULL, *node_str = NULL, *status_and_after = NULL, *status = NULL;
+	gchar *content = NULL, *rawxml = NULL, *node_str = NULL, *content_tmp = NULL, *eol = NULL, *status = NULL;
 	xmlnode *tmpnode = NULL;
 	gint len, errsv = 0;
 	static gint size_response = 0;
@@ -132,21 +133,21 @@ gint campfire_http_response(CampfireSslTransaction *xaction, PurpleInputConditio
 	purple_debug_info("campfire", "HTTP response size: %d bytes\n", size_response);
 	purple_debug_info("campfire", "HTTP response string:\n%s\n", xaction->http_response->str);
 
-	/*
-	 *look for the status
-	 */
-	status_and_after = g_strstr_len(xaction->http_response->str, size_response, status_header);
-	purple_debug_info("campfire","status_and_after:%p\n", status_and_after);
-	purple_debug_info("campfire","%s:%d\n", __FUNCTION__, __LINE__);
-	status = g_malloc0(4); //status is 3-digits plus NULL
-	purple_debug_info("campfire","%s:%d\n", __FUNCTION__, __LINE__);
-	g_strlcpy (status, &status_and_after[strlen(status_header)], 4);
+	// look for the status
+	content_tmp = g_strstr_len(xaction->http_response->str, size_response, status_header);
+	status = g_malloc0(4); //status is 3-digits plus NULL		
+	g_strlcpy (status, &content_tmp[strlen(status_header)], 4);
 	purple_debug_info("campfire", "HTTP status: %s\n", status);
+
+	// look for the content length
+	content_tmp = g_strstr_len(xaction->http_response->str, size_response, content_len_header);
+	eol = g_strstr_len(content_tmp, size_response, "\r\n");
+	xaction->content_len = g_ascii_strtoll(&content_tmp[strlen(content_len_header)], &eol, 10);
+	purple_debug_info("campfire", "HTTP content-length: %i\n", xaction->content_len);
+	
 	purple_debug_info("campfire","%s:%d\n", __FUNCTION__, __LINE__);
 	
-	/*
-	 *look for the content
-	 */
+	// look for the content
 	content = g_strstr_len(xaction->http_response->str, size_response, blank_line);
 
 	if (content) {
@@ -159,6 +160,7 @@ gint campfire_http_response(CampfireSslTransaction *xaction, PurpleInputConditio
 		if (node) {
 			*node = NULL;
 		}
+		g_free(status);		
 		return CAMPFIRE_HTTP_RESPONSE_STATUS_NO_CONTENT;
 	}
 
@@ -173,11 +175,14 @@ gint campfire_http_response(CampfireSslTransaction *xaction, PurpleInputConditio
 		if(g_strcmp0(status, "200") == 0)
 		{
 			purple_debug_info("campfire", "no xml found, status OK\n");
+			g_free(status);
 			return CAMPFIRE_HTTP_RESPONSE_STATUS_OK_NO_XML;
 		}
 		purple_debug_info("campfire", "no xml found\n");
+		g_free(status);
 		return CAMPFIRE_HTTP_RESPONSE_STATUS_NO_XML;
 	}
+	g_free(status);
 
 	//purple_debug_info("campfire", "raw xml: %s\n", rawxml);
 
@@ -358,7 +363,9 @@ CampfireMessage * campfire_get_message(xmlnode *xmlmessage)
 	msg->time = mtime;
 	msg->type = msgtype;
 		
-	if (g_strcmp0(msgtype, CAMPFIRE_MESSAGE_TEXT) == 0)
+	if (g_strcmp0(msgtype, CAMPFIRE_MESSAGE_TEXT) == 0 ||
+		g_strcmp0(msgtype, CAMPFIRE_MESSAGE_TWEET) == 0 ||
+		g_strcmp0(msgtype, CAMPFIRE_MESSAGE_PASTE) == 0)
 	{
 		msg->message = body;
 	}
@@ -665,7 +672,7 @@ void campfire_fetch_first_messages(CampfireConn *campfire, gchar *room_id)
 
 	uri = g_string_new("/room/");
 	g_string_append(uri, room_id);
-	g_string_append(uri, "/recent.xml?limit=40");
+	g_string_append(uri, "/recent.xml?limit=2");
 
 	xaction->campfire = campfire;
 	xaction->response_cb = (PurpleSslInputFunction)campfire_message_callback;
@@ -888,7 +895,9 @@ void campfire_print_messages(CampfireSslTransaction *xaction, PurpleSslConnectio
 					//again when we've retrieved the upload info
 					return;
 				}
-				else if(g_strcmp0(msg->type, CAMPFIRE_MESSAGE_TEXT) == 0)
+				else if(g_strcmp0(msg->type, CAMPFIRE_MESSAGE_TEXT) == 0 ||
+						g_strcmp0(msg->type, CAMPFIRE_MESSAGE_TWEET) == 0 ||
+						g_strcmp0(msg->type, CAMPFIRE_MESSAGE_PASTE) == 0)
 				{
 					purple_debug_info("campfire", "Writing chat message \"%s\" to %p from name %s\n", msg->message, convo, user_name);
 					purple_conversation_write(convo, user_name, msg->message,
