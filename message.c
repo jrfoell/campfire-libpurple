@@ -67,8 +67,7 @@ gint campfire_http_response(CampfireSslTransaction *xaction, PurpleInputConditio
 	gchar *status_header = "\r\nStatus: ";
 	gchar *content_len_header = "\r\nContent-Length: ";
 	gchar *xml_header = "<?xml";
-	gchar *content = NULL, *rawxml = NULL, *node_str = NULL, *content_tmp = NULL, *eol = NULL, *status = NULL;
-	xmlnode *tmpnode = NULL;
+	gchar *content_tmp = NULL, *eol = NULL, *status = NULL;
 	gint len, errsv = 0;
 	static gint size_response = 0;
 
@@ -148,14 +147,14 @@ gint campfire_http_response(CampfireSslTransaction *xaction, PurpleInputConditio
 	purple_debug_info("campfire","%s:%d\n", __FUNCTION__, __LINE__);
 	
 	// look for the content
-	content = g_strstr_len(xaction->http_response->str, size_response, blank_line);
+	content_tmp = g_strstr_len(xaction->http_response->str, size_response, blank_line);
 
-	if (content) {
-		purple_debug_info("campfire", "content: %s\n", content);
+	if (content_tmp) {
+		purple_debug_info("campfire", "content: %s\n", content_tmp);
 	}
 
 	size_response = 0; /* reset */
-	if(content == NULL) {
+	if(content_tmp == NULL) {
 		purple_debug_info("campfire", "no content found\n");
 		if (node) {
 			*node = NULL;
@@ -164,9 +163,9 @@ gint campfire_http_response(CampfireSslTransaction *xaction, PurpleInputConditio
 		return CAMPFIRE_HTTP_RESPONSE_STATUS_NO_CONTENT;
 	}
 
-	rawxml = g_strstr_len(content, strlen(content), xml_header);
+	content_tmp = g_strstr_len(content_tmp, strlen(content_tmp), xml_header);
 
-	if(rawxml == NULL)
+	if(content_tmp == NULL)
 	{
 		if(node)
 		{
@@ -184,17 +183,13 @@ gint campfire_http_response(CampfireSslTransaction *xaction, PurpleInputConditio
 	}
 	g_free(status);
 
-	//purple_debug_info("campfire", "raw xml: %s\n", rawxml);
+	//purple_debug_info("campfire", "raw xml: %s\n", content_tmp);
 
-	tmpnode = xmlnode_from_str(rawxml, -1);
-	node_str = xmlnode_to_str(tmpnode, NULL);
-	//purple_debug_info("campfire", "xml: %s\n", node_str);
-	g_free(node_str);
+	if (node) {
+		*node = xmlnode_from_str(content_tmp, -1);
+	}
 	g_string_free(xaction->http_response, TRUE);
 	xaction->http_response = NULL;
-	if (node) {
-		*node = tmpnode;
-	}
 	return CAMPFIRE_HTTP_RESPONSE_STATUS_XML_OK;
 }
 
