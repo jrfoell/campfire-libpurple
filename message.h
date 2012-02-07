@@ -46,6 +46,7 @@ typedef struct _CampfireSslTransaction {
 	gchar *room_id;
 	GList *messages;
 	gboolean first_check;
+	gboolean my_message;
 } CampfireSslTransaction;
 
 typedef struct _CampfireMessage {
@@ -59,7 +60,8 @@ typedef struct _CampfireMessage {
 typedef struct _CampfireRoom {
 	gchar *id;
 	gchar *name;
-	gchar *last_message_id;	
+	gchar *last_message_id;
+	GList *my_message_ids;
 } CampfireRoom;
 
 void campfire_message_send(CampfireConn *campfire, int id, const char *message);
