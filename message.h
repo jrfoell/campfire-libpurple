@@ -13,6 +13,7 @@
 #define	CAMPFIRE_MESSAGE_LEAVE "LeaveMessage"
 #define	CAMPFIRE_MESSAGE_TIME "TimestampMessage"
 #define	CAMPFIRE_MESSAGE_KICK "KickMessage"
+#define	CAMPFIRE_MESSAGE_UPLOAD "UploadMessage"
 
 enum http_response_status {
 	CAMPFIRE_HTTP_RESPONSE_STATUS_XML_OK,

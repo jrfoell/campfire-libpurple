@@ -98,7 +98,7 @@ gint campfire_http_response(CampfireSslTransaction *xaction, PurpleInputConditio
 
 
 	if (len < 0) {
-		if (errsv == EAGAIN) {
+		if (errno == EAGAIN) {
 			if (size_response == 0) {
 				purple_debug_info("campfire", "TRY AGAIN\n");
 				return CAMPFIRE_HTTP_RESPONSE_STATUS_TRY_AGAIN;
@@ -753,8 +753,8 @@ void campfire_print_messages(CampfireSslTransaction *xaction, PurpleSslConnectio
 	CampfireConn *campfire = xaction->campfire;
 	GList *first = g_list_first(xaction->messages);
 	gboolean print = TRUE;
-	xmlnode *xmlusername = NULL, *xmluserid = NULL;
-	gchar *user_id = NULL, *username = NULL, *user_name = NULL, *msg_id = NULL;
+	xmlnode *xmlusername = NULL, *xmluserid = NULL, *xmlurl = NULL;
+	gchar *user_id = NULL, *username = NULL, *user_name = NULL, *msg_id = NULL, *upload_url = NULL;
 	CampfireMessage *msg = NULL;
 	GString *uri, *message = NULL;
 	CampfireSslTransaction *xaction2 = NULL;
@@ -772,16 +772,26 @@ void campfire_print_messages(CampfireSslTransaction *xaction, PurpleSslConnectio
 		campfire->users = g_hash_table_new(g_str_hash, g_str_equal);
 	}
 
-	//handle possible user response (if used as a callback)
+	//handle possible response(s) (if used as a callback)
 	if(xaction->xml_response)
 	{
-		xmlusername = xmlnode_get_child(xaction->xml_response, "name");
-		xmluserid = xmlnode_get_child(xaction->xml_response, "id");
+		purple_debug_info("campfire", "got xml %s\n", xmlnode_to_str(xaction->xml_response, NULL));
+		xmlurl = xmlnode_get_child(xaction->xml_response, "full-url");
+		if(xmlurl) //it's an upload response
+		{
+			upload_url = xmlnode_get_data(xmlurl);
+			purple_debug_info("campfire", "got upload URL %s\n", upload_url);
+		}
+		else //it's a user response
+		{
+			xmlusername = xmlnode_get_child(xaction->xml_response, "name");
+			xmluserid = xmlnode_get_child(xaction->xml_response, "id");
 
-		user_id = xmlnode_get_data(xmluserid);
-		username = xmlnode_get_data(xmlusername);
-		purple_debug_info("campfire", "adding username %s ID %s\n", username, user_id);
-		g_hash_table_replace(campfire->users, user_id, username);
+			user_id = xmlnode_get_data(xmluserid);
+			username = xmlnode_get_data(xmlusername);
+			purple_debug_info("campfire", "adding username %s ID %s\n", username, user_id);
+			g_hash_table_replace(campfire->users, user_id, username);			
+		}		
 	}
 	
 	if (!first) {
@@ -823,11 +833,9 @@ void campfire_print_messages(CampfireSslTransaction *xaction, PurpleSslConnectio
 			
 			//print
 			room = g_hash_table_lookup(campfire->rooms, xaction->room_id);
-			purple_debug_info("campfire", "not crashed yet 1.5 %s\n", xaction->room_id);
 			convo = purple_find_conversation_with_account(PURPLE_CONV_TYPE_ANY, room->name, purple_connection_get_account(xaction->campfire->gc));
-			purple_debug_info("campfire", "not crashed yet 2\n");
 
-			purple_debug_info("campfire", "Writing chat message ID \"%s\" to %p from name %s\n", msg->id, convo, user_name);
+			purple_debug_info("campfire", "Writing message ID \"%s\" type \"%s\" to %p from name \"%s\"\n", msg->id, msg->type, convo, user_name);
 
 			// some explanation: when you send a message, the resulting
 			// message gets sent back as a confirmation. The
@@ -855,7 +863,32 @@ void campfire_print_messages(CampfireSslTransaction *xaction, PurpleSslConnectio
 
 			if(print)
 			{
-				if(g_strcmp0(msg->type, CAMPFIRE_MESSAGE_TEXT) == 0)
+				if(g_strcmp0(msg->type, CAMPFIRE_MESSAGE_UPLOAD) == 0 && !upload_url)
+				{
+					purple_debug_info("campfire", "Going to fetch upload\n");
+					uri = g_string_new("/room/");
+					g_string_append(uri, xaction->room_id);
+					g_string_append(uri, "/messages/");
+					g_string_append(uri, msg->id);
+					g_string_append(uri, "/upload.xml");
+
+					xaction2 = g_new0(CampfireSslTransaction, 1);
+
+					xaction2->campfire = xaction->campfire;
+					xaction2->response_cb = (PurpleSslInputFunction)campfire_print_messages;
+					xaction2->response_cb_data = xaction2;
+					xaction2->messages = xaction->messages;
+					xaction2->room_id = g_strdup(xaction->room_id);
+					xaction2->first_check = xaction->first_check;
+					xaction2->my_message = xaction->my_message;
+			
+					campfire_http_request(xaction2, uri->str, "GET", NULL);
+					campfire_queue_xaction(xaction2, campfire->gsc, cond);
+					//return here so we can print this message out
+					//again when we've retrieved the upload info
+					return;
+				}
+				else if(g_strcmp0(msg->type, CAMPFIRE_MESSAGE_TEXT) == 0)
 				{
 					purple_debug_info("campfire", "Writing chat message \"%s\" to %p from name %s\n", msg->message, convo, user_name);
 					purple_conversation_write(convo, user_name, msg->message,
@@ -865,17 +898,22 @@ void campfire_print_messages(CampfireSslTransaction *xaction, PurpleSslConnectio
 				else
 				{
 					message = g_string_new(user_name);
-					if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_ENTER) == 0)
+					if(g_strcmp0(msg->type, CAMPFIRE_MESSAGE_ENTER) == 0)
 					{
 						g_string_append(message, " entered the room.");
 					}
-					else if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_LEAVE) == 0)
+					else if(g_strcmp0(msg->type, CAMPFIRE_MESSAGE_LEAVE) == 0)
 					{
 						g_string_append(message, " left the room.");
 					}
-					else if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_KICK) == 0)
+					else if(g_strcmp0(msg->type, CAMPFIRE_MESSAGE_KICK) == 0)
 					{
 						g_string_append(message, " kicked.");
+					}
+					else if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_UPLOAD) == 0 && upload_url)
+					{
+						g_string_append(message, " uploaded ");
+						g_string_append(message, upload_url);
 					}
 					purple_conversation_write(convo, "", message->str,
 											  PURPLE_MESSAGE_SYSTEM,
