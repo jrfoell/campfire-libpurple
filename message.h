@@ -35,6 +35,7 @@ typedef struct _CampfireConn {
 	GHashTable *rooms;
 	GHashTable *users;
 	guint message_timer;
+	GList *queue;
 } CampfireConn;
 
 typedef struct _CampfireSslTransaction {
