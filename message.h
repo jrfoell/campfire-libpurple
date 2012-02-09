@@ -1,9 +1,17 @@
 #ifndef MESSAGE_H
 #define MESSAGE_H
 
+//local includes
+#include "http.h"
+#include "campfire.h"
+
+//system includes
+#include <glib/gi18n.h>
+#include <time.h>
+
 //purple includes
+#include <xmlnode.h>
 #include <plugin.h>
-#include <roomlist.h>
 
 #define CAMPFIRE_MESSAGE_TEXT "TextMessage"
 #define	CAMPFIRE_MESSAGE_PASTE "PasteMessage"
@@ -14,44 +22,6 @@
 #define	CAMPFIRE_MESSAGE_TIME "TimestampMessage"
 #define	CAMPFIRE_MESSAGE_KICK "KickMessage"
 #define	CAMPFIRE_MESSAGE_UPLOAD "UploadMessage"
-
-
-enum http_response_status {
-	CAMPFIRE_HTTP_RESPONSE_STATUS_XML_OK,
-	CAMPFIRE_HTTP_RESPONSE_STATUS_OK_NO_XML,
-	CAMPFIRE_HTTP_RESPONSE_STATUS_TRY_AGAIN,
-	CAMPFIRE_HTTP_RESPONSE_STATUS_LOST_CONNECTION,
-	CAMPFIRE_HTTP_RESPONSE_STATUS_DISCONNECTED,
-	CAMPFIRE_HTTP_RESPONSE_STATUS_NO_CONTENT,
-	CAMPFIRE_HTTP_RESPONSE_STATUS_NO_XML,
-};
-
-typedef struct _CampfireConn {
-	PurpleAccount *account;
-	PurpleRoomlist *roomlist;
-	PurpleConnection *gc;
-	PurpleSslConnection *gsc;
-	gchar *hostname;
-	GHashTable *rooms;
-	GHashTable *users;
-	guint message_timer;
-	GList *queue;
-} CampfireConn;
-
-typedef struct _CampfireSslTransaction {
-	CampfireConn *campfire;
-	GString *http_request;
-	GString *http_response;
-	PurpleSslInputFunction response_cb;
-	gpointer response_cb_data;
-	xmlnode *xml_response;
-	gint content_len;
-	//optional
-	gchar *room_id;
-	GList *messages;
-	gboolean first_check;
-	gboolean my_message;
-} CampfireSslTransaction;
 
 typedef struct _CampfireMessage {
 	gchar *id;

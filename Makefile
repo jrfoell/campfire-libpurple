@@ -3,8 +3,7 @@ LIBNAME=libcampfire.so
 
 all: $(LIBNAME)
  
-C_SRCS:= campfire.c \
-  message.c
+C_SRCS:= campfire.c message.c http.c
 
 # Object file names using 'Substitution Reference'
 C_OBJS:=$(C_SRCS:.c=.o)

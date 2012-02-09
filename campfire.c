@@ -1,19 +1,11 @@
-//system includes
-#include <glib/gi18n.h>
+//local includes
+#include "campfire.h"
+#include "message.h"
 
 //purple includes
-#include <prpl.h>
-#include <notify.h>
 #include <version.h>
 #include <accountopt.h>
-#include <xmlnode.h>
 #include <debug.h>
-//for connections et al.
-#include <sslconn.h>
-#include <proxy.h> 
-
-//local includes
-#include "message.h"
 
 gboolean plugin_load(PurplePlugin *plugin)
 {
