@@ -80,17 +80,17 @@ gint campfire_http_response(PurpleSslConnection *gsc, CampfireSslTransaction *xa
 
 	errno = 0;
 	while((len = purple_ssl_read(gsc, buf, sizeof(buf))) > 0) {
-		errsv = errno;
 		purple_debug_info("campfire",
 		                  "read %d bytes from HTTP Response, errno: %i\n",
-		                  len, errsv);
+		                  len, errno);
 		xaction->http_response = g_string_append_len(xaction->http_response, buf, len);
 	}
+	errsv = errno;
 
 	purple_debug_info("campfire","%s:%d\n", __FUNCTION__, __LINE__);
 
 
-	if(len < 0 && errno == EAGAIN)
+	if(len < 0 && errsv == EAGAIN)
 	{
 		if (xaction->http_response->len == 0)
 		{
@@ -194,11 +194,13 @@ void campfire_ssl_handler(CampfireConn *campfire, PurpleSslConnection *gsc, Purp
 	gboolean close_ssl = FALSE;
 	gboolean cleanup = TRUE;
 
-	if(!PURPLE_CONNECTION_IS_VALID(campfire->gc))
-	{
-		purple_ssl_close(gsc);
-		g_return_if_reached();
-	}
+	/*
+	 * if(!PURPLE_CONNECTION_IS_VALID(campfire->gc))
+	 * {
+	 * 	purple_ssl_close(gsc);
+	 * 	g_return_if_reached();
+	 * }
+	 */
 
 	if(first)
 	{
@@ -229,11 +231,13 @@ void campfire_ssl_handler(CampfireConn *campfire, PurpleSslConnection *gsc, Purp
 	}
 	else if (status ==  CAMPFIRE_HTTP_RESPONSE_STATUS_DISCONNECTED)
 	{
-		/*close_ssl = TRUE;*/
+		close_ssl = TRUE;
 		cleanup = TRUE;
-		purple_connection_error_reason(campfire->gc,
-		                               PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
-		                               "Server closed the connection");
+		/*
+		 * purple_connection_error_reason(campfire->gc,
+		 * 			       PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
+		 * 			       "Server closed the connection");
+		 */
 	}
 	else
 	{
@@ -243,9 +247,9 @@ void campfire_ssl_handler(CampfireConn *campfire, PurpleSslConnection *gsc, Purp
 	if (close_ssl && campfire->gsc)
 	{
 		purple_debug_info("campfire", "closing ssl connection:%p (%p)\n", gsc, campfire->gsc);
-		//purple_input_remove(gsc->inpa);
 		campfire->gsc = NULL;
 		purple_ssl_close(gsc);
+		//purple_input_remove(gsc->inpa); /*this is part of purple_ssl_close()*/
 		cleanup = TRUE;
 	}
 			
@@ -296,6 +300,7 @@ void campfire_ssl_connect(CampfireConn *campfire, PurpleInputCondition cond)
 	GList *first = NULL;
 	CampfireSslTransaction *xaction = NULL;
 
+	purple_debug_info("campfire", "%s\n", __FUNCTION__);
 	if(!campfire)
 	{
 		return;
@@ -326,8 +331,9 @@ void campfire_ssl_connect(CampfireConn *campfire, PurpleInputCondition cond)
 		                                   campfire->hostname,
 		                                   443,
 		                                   (PurpleSslInputFunction)(campfire_ssl_connect),
-		                                    campfire_ssl_failure,
-		                                    campfire);
+		                                   campfire_ssl_failure,
+		                                   campfire);
+		purple_debug_info("campfire", "new ssl connection kicked off.\n");
 	}
 	else
 	{
