@@ -194,14 +194,6 @@ void campfire_ssl_handler(CampfireConn *campfire, PurpleSslConnection *gsc, Purp
 	gboolean close_ssl = FALSE;
 	gboolean cleanup = TRUE;
 
-	/*
-	 * if(!PURPLE_CONNECTION_IS_VALID(campfire->gc))
-	 * {
-	 * 	purple_ssl_close(gsc);
-	 * 	g_return_if_reached();
-	 * }
-	 */
-
 	if(first)
 	{
 		xaction = first->data;
@@ -225,19 +217,11 @@ void campfire_ssl_handler(CampfireConn *campfire, PurpleSslConnection *gsc, Purp
 		}
 		cleanup = TRUE;
 	}
-	else if(status == CAMPFIRE_HTTP_RESPONSE_STATUS_LOST_CONNECTION)
-	{
-		close_ssl = TRUE;
-	}
-	else if (status ==  CAMPFIRE_HTTP_RESPONSE_STATUS_DISCONNECTED)
+	else if(    status == CAMPFIRE_HTTP_RESPONSE_STATUS_LOST_CONNECTION
+	         || status ==  CAMPFIRE_HTTP_RESPONSE_STATUS_DISCONNECTED)
 	{
 		close_ssl = TRUE;
 		cleanup = TRUE;
-		/*
-		 * purple_connection_error_reason(campfire->gc,
-		 * 			       PURPLE_CONNECTION_ERROR_NETWORK_ERROR,
-		 * 			       "Server closed the connection");
-		 */
 	}
 	else
 	{
@@ -249,7 +233,6 @@ void campfire_ssl_handler(CampfireConn *campfire, PurpleSslConnection *gsc, Purp
 		purple_debug_info("campfire", "closing ssl connection:%p (%p)\n", gsc, campfire->gsc);
 		campfire->gsc = NULL;
 		purple_ssl_close(gsc);
-		//purple_input_remove(gsc->inpa); /*this is part of purple_ssl_close()*/
 		cleanup = TRUE;
 	}
 			
@@ -291,14 +274,6 @@ void campfire_ssl_handler(CampfireConn *campfire, PurpleSslConnection *gsc, Purp
 			xaction = first->data;
 			purple_debug_info("campfire", "writing subsequent request on ssl connection\n");
 			purple_ssl_write(gsc, xaction->http_request->str, xaction->http_request->len);
-		}
-		else
-		{
-			if (campfire->gsc)
-			{
-				campfire->gsc = NULL;
-				purple_ssl_close(gsc);
-			}
 		}
 	}			
 }
@@ -348,8 +323,16 @@ void campfire_ssl_connect(CampfireConn *campfire, PurpleInputCondition cond)
 		purple_debug_info("campfire", "previous ssl connection\n");
 		if(g_list_length(campfire->queue) == 1)
 		{
-			purple_debug_info("campfire", "adding input\n");
-			purple_ssl_input_add(campfire->gsc, (PurpleSslInputFunction)(campfire_ssl_handler), campfire);
+			/* campfire_ssl_handler is the ONLY input handler we EVER use
+			 * So... if there is already an input handler present (inpa > 0),
+			 * then we DON"T want to add another input handler.  Quite a few hours
+			 * spent chasing bugs when multiple input handlers were added!
+			 */
+			if (campfire->gsc->inpa == 0)
+			{
+				purple_debug_info("campfire", "adding input\n");
+				purple_ssl_input_add(campfire->gsc, (PurpleSslInputFunction)(campfire_ssl_handler), campfire);
+			}
 			purple_debug_info("campfire", "writing first request on ssl connection\n");
 			purple_ssl_write(campfire->gsc, xaction->http_request->str, xaction->http_request->len);
 		}
