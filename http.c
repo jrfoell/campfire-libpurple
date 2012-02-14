@@ -292,6 +292,14 @@ void campfire_ssl_handler(CampfireConn *campfire, PurpleSslConnection *gsc, Purp
 			purple_debug_info("campfire", "writing subsequent request on ssl connection\n");
 			purple_ssl_write(gsc, xaction->http_request->str, xaction->http_request->len);
 		}
+		else
+		{
+			if (campfire->gsc)
+			{
+				campfire->gsc = NULL;
+				purple_ssl_close(gsc);
+			}
+		}
 	}			
 }
 
