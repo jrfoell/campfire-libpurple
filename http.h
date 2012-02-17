@@ -19,6 +19,8 @@ enum http_response_status {
 	CAMPFIRE_HTTP_RESPONSE_STATUS_DISCONNECTED,
 	CAMPFIRE_HTTP_RESPONSE_STATUS_NO_CONTENT,
 	CAMPFIRE_HTTP_RESPONSE_STATUS_NO_XML,
+	CAMPFIRE_HTTP_RESPONSE_STATUS_MORE_CONTENT_NEEDED,
+	CAMPFIRE_HTTP_RESPONSE_STATUS_FAIL,
 };
 
 typedef struct _CampfireSslTransaction {
@@ -28,7 +30,7 @@ typedef struct _CampfireSslTransaction {
 	PurpleSslInputFunction response_cb;
 	gpointer response_cb_data;
 	xmlnode *xml_response;
-	gint content_len;
+	gsize content_len;
 	//optional
 	gchar *room_id;
 	GList *messages;

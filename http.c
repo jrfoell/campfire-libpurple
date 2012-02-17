@@ -53,16 +53,75 @@ void campfire_http_request(CampfireSslTransaction *xaction, gchar *uri, gchar *m
 	purple_debug_info("campfire", "Formatted request:\n %s\n", xaction->http_request->str);
 }
 
+/* return 1 on error, return 0 on success */
+static gint campfire_get_http_status_from_response(gint *status, GString *response)
+{
+	gchar *str, *found_str, *extra_chars;
+	gchar prefix[] = "\r\nStatus: ";
+	gsize prefix_size = sizeof(prefix) - 1; /* this sizeof() includes the NULL */
+	gint tmp;
+
+	found_str = g_strstr_len(response->str, response->len, prefix);
+	if (!found_str) {
+		return 1;
+	}
+	found_str += prefix_size; /* increment pointer to start of status string */
+	str = g_malloc0(4); /* status is 3-digits plus NULL */
+	g_strlcpy(str, found_str, 4);
+	tmp = (gint)g_ascii_strtoull(str, &extra_chars, 10);
+	g_free(str);
+	if (tmp == 0  && extra_chars == str) {
+		return 1;
+	}
+	*status = tmp;
+	return 0;
+}
+
+/* return 1 on error, return 0 on success */
+static gint campfire_get_content_length_from_response(gsize *cl, GString *response)
+{
+	gchar *str, *found_str, *extra_chars, *eol;
+	gchar prefix[] = "\r\nContent-Length: ";
+	gsize prefix_size = sizeof(prefix) - 1; /* this sizeof() includes the NULL */
+	gsize rest_of_response_size;
+	gsize cl_size;
+	gsize tmp;
+
+	found_str = g_strstr_len(response->str, response->len, prefix);
+	if (!found_str) {
+		return 1;
+	}
+	found_str += prefix_size; /* increment pointer to start desired string */
+	rest_of_response_size = response->len - (found_str - response->str);
+	eol = g_strstr_len(found_str, rest_of_response_size, "\r\n");
+	if (!eol)
+	{
+		return 1;
+	}
+	cl_size = eol - found_str + 1;
+	purple_debug_info("campfire","content length str len = %lu\n", cl_size);
+	purple_debug_info("campfire","%p %p -%c- -%c- \n", found_str, eol, found_str[0], eol[0]);
+	str = g_malloc0(cl_size);
+	g_strlcpy(str, found_str, cl_size);
+	tmp = g_ascii_strtoll(str, &extra_chars, 10);
+	g_free(str);
+	if (tmp == 0  && extra_chars == str) {
+		return 1;
+	}
+	*cl = tmp;
+	return 0;
+}
+
 gint campfire_http_response(PurpleSslConnection *gsc, CampfireSslTransaction *xaction, PurpleInputCondition cond,
                             xmlnode **node)
 {
 	gchar buf[1024];
 	gchar *blank_line = "\r\n\r\n",
-		*status_header = "\r\nStatus: ",
-		*content_len_header = "\r\nContent-Length: ",
-		*xml_header = "<?xml",
-		*content_tmp = NULL, *eol = NULL, *status = NULL;
+	      *content_start,
+	      *xml_header = "<?xml";
 	gint len, errsv = 0;
+	gint status;
+	gsize size_content_received;
 
 	if (xaction->campfire && !xaction->campfire->gsc)
 	{
@@ -122,64 +181,73 @@ gint campfire_http_response(PurpleSslConnection *gsc, CampfireSslTransaction *xa
 	 * below we parse the response and pull out the
 	 * xml we need
 	 */
-	g_string_append(xaction->http_response, "\n");
+	//g_string_append(xaction->http_response, "\n");
 	purple_debug_info("campfire", "HTTP response size: %lu bytes\n", xaction->http_response->len);
 	purple_debug_info("campfire", "HTTP response string:\n%s\n", xaction->http_response->str);
 
 	// look for the status
-	content_tmp = g_strstr_len(xaction->http_response->str, xaction->http_response->len, status_header);
-	status = g_malloc0(4); //status is 3-digits plus NULL		
-	g_strlcpy (status, &content_tmp[strlen(status_header)], 4);
-	purple_debug_info("campfire", "HTTP status: %s\n", status);
+	if(campfire_get_http_status_from_response(&status, xaction->http_response))
+	{
+		return CAMPFIRE_HTTP_RESPONSE_STATUS_FAIL;
+	}
 
 	// look for the content length
-	content_tmp = g_strstr_len(xaction->http_response->str, xaction->http_response->len, content_len_header);
-	eol = g_strstr_len(content_tmp, xaction->http_response->len, "\r\n");
-	xaction->content_len = g_ascii_strtoll(&content_tmp[strlen(content_len_header)], &eol, 10);
-	purple_debug_info("campfire", "HTTP content-length: %i\n", xaction->content_len);
+	if(campfire_get_content_length_from_response(&xaction->content_len, xaction->http_response))
+	{
+		return CAMPFIRE_HTTP_RESPONSE_STATUS_FAIL;
+	}
+	purple_debug_info("campfire", "HTTP content-length: %lu\n", xaction->content_len);
 	
 	purple_debug_info("campfire","%s:%d\n", __FUNCTION__, __LINE__);
 	
 	// look for the content
-	content_tmp = g_strstr_len(xaction->http_response->str, xaction->http_response->len, blank_line);
-
-	if (content_tmp) {
-		purple_debug_info("campfire", "content: %s\n", content_tmp);
+	content_start = g_strstr_len(xaction->http_response->str, xaction->http_response->len, blank_line);
+	if (content_start)
+	{
+		purple_debug_info("campfire", "content: %s\n", content_start);
 	}
-
-	if(content_tmp == NULL) {
+	else 
+	{
 		purple_debug_info("campfire", "no content found\n");
 		if (node) {
 			*node = NULL;
 		}
-		g_free(status);		
 		return CAMPFIRE_HTTP_RESPONSE_STATUS_NO_CONTENT;
 	}
 
-	content_tmp = g_strstr_len(content_tmp, strlen(content_tmp), xml_header);
+	content_start += 4 * sizeof(gchar); // account for \r\n\r\n
+	size_content_received =    (unsigned long)xaction->http_response->str
+	                        +  xaction->http_response->len
+	                        - (unsigned long)content_start; // pointer math
+	purple_debug_info("campfire", "content-length debug: %lu %lu\n",
+	                  xaction->content_len, size_content_received);
 
-	if(content_tmp == NULL)
+	if (size_content_received < xaction->content_len)
+	{
+		return CAMPFIRE_HTTP_RESPONSE_STATUS_MORE_CONTENT_NEEDED;
+	}
+
+	content_start = g_strstr_len(content_start, strlen(content_start), xml_header);
+
+	if(content_start == NULL)
 	{
 		if(node)
 		{
 			*node = NULL;
 		}
-		if(g_strcmp0(status, "200") == 0)
+		if(status == 200)
 		{
 			purple_debug_info("campfire", "no xml found, status OK\n");
-			g_free(status);
 			return CAMPFIRE_HTTP_RESPONSE_STATUS_OK_NO_XML;
 		}
 		purple_debug_info("campfire", "no xml found\n");
-		g_free(status);
 		return CAMPFIRE_HTTP_RESPONSE_STATUS_NO_XML;
 	}
-	g_free(status);
 
 	//purple_debug_info("campfire", "raw xml: %s\n", content_tmp);
 
 	if (node) {
-		*node = xmlnode_from_str(content_tmp, -1);
+		*node = xmlnode_from_str(content_start, -1);
 	}
 	g_string_free(xaction->http_response, TRUE);
 	xaction->http_response = NULL;
