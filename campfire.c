@@ -42,7 +42,7 @@ static void campfire_login(PurpleAccount *account)
 	//register campfire commands
 	purple_cmd_register(CAMPFIRE_CMD_ME, "s", PURPLE_CMD_P_PRPL, f, prpl_id,
 	                  campfire_parse_cmd, "me &lt;action to perform&gt;:  Perform an action.", conn);
-	purple_cmd_register(CAMPFIRE_CMD_TOPIC, "s", PURPLE_CMD_P_PRPL, f, prpl_id,
+	purple_cmd_register(CAMPFIRE_CMD_TOPIC, "s", PURPLE_CMD_P_PRPL, f | PURPLE_CMD_FLAG_ALLOW_WRONG_ARGS, prpl_id,
 	                  campfire_parse_cmd, "topic &lt;new topic&gt;:  Change the room topic.", conn);
 	purple_cmd_register(CAMPFIRE_CMD_ROOM, "s", PURPLE_CMD_P_PRPL, f, prpl_id,
 	                  campfire_parse_cmd, "room &lt;new room name&gt;:  Change the room name (admin only).", conn);

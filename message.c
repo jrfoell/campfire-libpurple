@@ -4,52 +4,6 @@
 //purple includes
 #include <debug.h>
 
-/**
- * @TODO add PUT /room/#{id}.xml for topic update:
- * <room>
- *   <name>#{name}</name>
- *   <topic>#{topic}</topic>
- * </room>
- */
-
-PurpleCmdRet campfire_parse_cmd(PurpleConversation *conv, const gchar *cmd,
-										 gchar **args, gchar **error, void *data)
-{
-	PurpleConnection *gc = purple_conversation_get_gc(conv);
-	PurpleConvChat *chat = PURPLE_CONV_CHAT(conv);
-	GString *message = NULL;
-	
-	if (!gc)
-		return PURPLE_CMD_RET_FAILED;
-	
-	purple_debug_info("campfire", "cmd %s: args[0]: %s\n", cmd, args[0]);
-
-	if(g_strcmp0(cmd, CAMPFIRE_CMD_ME) == 0)
-	{
-		//send a message
-		message = g_string_new("*");
-		g_string_append(message, args[0]);
-		g_string_append(message, "*");
-		
-		campfire_message_send(data, chat->id, message->str, CAMPFIRE_MESSAGE_TEXT);
-	}
-	else if(g_strcmp0(cmd, CAMPFIRE_CMD_PLAY) == 0)
-	{
-		//send a message
-		campfire_message_send(data, chat->id, args[0], CAMPFIRE_MESSAGE_SOUND);
-	}
-	else if(g_strcmp0(cmd, CAMPFIRE_CMD_TOPIC) == 0)
-	{
-		//do a room request
-	}
-	else if(g_strcmp0(cmd, CAMPFIRE_CMD_ROOM) == 0)
-	{
-		//do a room request
-	}
-	
-	return PURPLE_CMD_RET_OK;
-}
-
 CampfireMessage * campfire_get_message(xmlnode *xmlmessage)
 {
 	xmlnode *xmlbody = NULL, *xmluser_id = NULL, *xmltime = NULL, *xmltype = NULL, *xmlid = NULL;
@@ -359,6 +313,93 @@ gboolean campfire_room_check(CampfireConn *campfire)
 	return TRUE;
 }
 
+void campfire_room_update_callback(CampfireSslTransaction *xaction, PurpleSslConnection *gsc,
+                                PurpleInputCondition cond)
+{
+	campfire_room_check(xaction->campfire);
+}
+
+void campfire_room_update(CampfireConn *campfire, gint id, gchar *topic, gchar *room_name)
+{	
+	gchar *room_id = g_strdup_printf("%i", id);
+	xmlnode *xmlroom = NULL, *xmltopic = NULL, *xmlname = NULL;
+	CampfireSslTransaction *xaction = NULL;
+	GString *uri = NULL;
+	
+	xmlroom = xmlnode_new("room");
+	if(topic)
+	{
+		xmltopic = xmlnode_new_child(xmlroom, "topic");
+		xmlnode_insert_data(xmltopic, topic, -1);
+	}
+
+	if(room_name)
+	{
+		xmlname = xmlnode_new_child(xmlroom, "name");
+		xmlnode_insert_data(xmlname, room_name, -1);
+	}
+	
+	uri = g_string_new("/room/");
+	g_string_append(uri, room_id);
+	g_string_append(uri, ".xml");
+
+	xaction = g_new0(CampfireSslTransaction, 1);
+	xaction->campfire = campfire;
+	xaction->response_cb = (PurpleSslInputFunction)campfire_room_update_callback;
+	xaction->response_cb_data = xaction;
+	xaction->room_id = g_strdup(room_id);
+
+	purple_debug_info("campfire", "Sending message %s\n", xmlnode_to_str(xmlroom, NULL));
+		
+	campfire_http_request(xaction, uri->str, "PUT", xmlroom);
+	g_string_free(uri, TRUE);
+	g_free(room_id);
+	xmlnode_free(xmlroom);
+	campfire_queue_xaction(campfire, xaction, PURPLE_INPUT_READ|PURPLE_INPUT_WRITE);
+}
+
+PurpleCmdRet campfire_parse_cmd(PurpleConversation *conv, const gchar *cmd,
+										 gchar **args, gchar **error, void *data)
+{
+	PurpleConnection *gc = purple_conversation_get_gc(conv);
+	PurpleConvChat *chat = PURPLE_CONV_CHAT(conv);
+	GString *message = NULL;
+	
+	if (!gc)
+		return PURPLE_CMD_RET_FAILED;
+	
+	purple_debug_info("campfire", "cmd %s: args[0]: %s\n", cmd, args[0]);
+
+	if(g_strcmp0(cmd, CAMPFIRE_CMD_ME) == 0)
+	{
+		//send a message
+		message = g_string_new("*");
+		g_string_append(message, args[0]);
+		g_string_append(message, "*");
+		
+		campfire_message_send(data, chat->id, message->str, CAMPFIRE_MESSAGE_TEXT);
+	}
+	else if(g_strcmp0(cmd, CAMPFIRE_CMD_PLAY) == 0)
+	{
+		//send a message
+		campfire_message_send(data, chat->id, args[0], CAMPFIRE_MESSAGE_SOUND);
+	}
+	else if(g_strcmp0(cmd, CAMPFIRE_CMD_TOPIC) == 0)
+	{
+		//do a room request
+		if(args[0])
+			campfire_room_update(data, chat->id, args[0], NULL);
+		else
+			campfire_room_update(data, chat->id, "", NULL);
+	}
+	else if(g_strcmp0(cmd, CAMPFIRE_CMD_ROOM) == 0)
+	{
+		//do a room request
+		campfire_room_update(data, chat->id, NULL, args[0]);
+	}
+	
+	return PURPLE_CMD_RET_OK;
+}
 
 void campfire_message_callback(CampfireSslTransaction *xaction, PurpleSslConnection *gsc,
                                PurpleInputCondition cond)
