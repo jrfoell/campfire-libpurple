@@ -252,6 +252,7 @@ gboolean campfire_room_check(CampfireConn *campfire)
 	// cancel the timer if we've left all rooms
 	if(!rooms)
 	{
+		purple_debug_info("campfire", "not in any rooms, removing timer\n");
 		campfire->message_timer = 0;
 		return FALSE;
 	}
@@ -415,6 +416,8 @@ void campfire_room_leave_callback(CampfireSslTransaction *xaction, PurpleSslConn
 	CampfireRoom *room = g_hash_table_lookup(xaction->campfire->rooms, xaction->room_id);
 	purple_debug_info("campfire", "leaving room: %s\n", room->name);
 	serv_got_chat_left(xaction->campfire->gc, g_ascii_strtoll(xaction->room_id, NULL, 10));
+	gboolean left = g_hash_table_remove(xaction->campfire->rooms, xaction->room_id);
+	purple_debug_info("campfire", "left room: %s\n", left ? "true" : "false");
 }
 
 void campfire_room_leave(CampfireConn *campfire, gint id)
