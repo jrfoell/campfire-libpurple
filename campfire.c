@@ -6,6 +6,7 @@
 #include <version.h>
 #include <accountopt.h>
 #include <debug.h>
+#include <cmds.h>
 
 gboolean plugin_load(PurplePlugin *plugin)
 {
@@ -24,6 +25,8 @@ static void campfire_login(PurpleAccount *account)
 	const char *username = purple_account_get_username(account);
 	CampfireConn *conn;
 	char **userparts;
+	PurpleCmdFlag f = PURPLE_CMD_FLAG_CHAT | PURPLE_CMD_FLAG_PRPL_ONLY;
+	gchar *prpl_id = "prpl-campfire";
 
 	conn = g_new0(CampfireConn, 1);
 	conn->gc = gc;
@@ -35,6 +38,16 @@ static void campfire_login(PurpleAccount *account)
 	g_strfreev(userparts);	
 
 	gc->proto_data = conn;
+
+	//register campfire commands
+	purple_cmd_register(CAMPFIRE_CMD_ME, "s", PURPLE_CMD_P_PRPL, f, prpl_id,
+	                  campfire_parse_cmd, "me &lt;action to perform&gt;:  Perform an action.", conn);
+	purple_cmd_register(CAMPFIRE_CMD_TOPIC, "s", PURPLE_CMD_P_PRPL, f | PURPLE_CMD_FLAG_ALLOW_WRONG_ARGS, prpl_id,
+	                  campfire_parse_cmd, "topic &lt;new topic&gt;:  Change the room topic.", conn);
+	purple_cmd_register(CAMPFIRE_CMD_ROOM, "s", PURPLE_CMD_P_PRPL, f, prpl_id,
+	                  campfire_parse_cmd, "room &lt;new room name&gt;:  Change the room name (admin only).", conn);
+	purple_cmd_register(CAMPFIRE_CMD_PLAY, "w", PURPLE_CMD_P_PRPL, f, prpl_id,
+	                  campfire_parse_cmd, "play &lt;sound&gt;:  Play a sound (trombone, rimshot, crickets, live).", conn);
 
 	purple_connection_set_state(gc, PURPLE_CONNECTED);
 }
@@ -186,13 +199,13 @@ const char * campfireim_list_icon(PurpleAccount *account, PurpleBuddy *buddy)
 int campfire_chat_send(PurpleConnection *gc, int id, const char *message,
                        PurpleMessageFlags flags)
 {
-	campfire_message_send(gc->proto_data, id, message);
+	campfire_message_send(gc->proto_data, id, message, CAMPFIRE_MESSAGE_TEXT);
 	return 1;
 }
 
 static PurplePluginProtocolInfo campfire_protocol_info = {
 	/* options */
-	OPT_PROTO_CHAT_TOPIC | OPT_PROTO_NO_PASSWORD | OPT_PROTO_SLASH_COMMANDS_NATIVE,
+	OPT_PROTO_CHAT_TOPIC | OPT_PROTO_NO_PASSWORD, // | OPT_PROTO_SLASH_COMMANDS_NATIVE,
 	NULL,                   /* user_splits */
 	NULL,                   /* protocol_options */
 	{   /* icon_spec, a PurpleBuddyIconSpec */

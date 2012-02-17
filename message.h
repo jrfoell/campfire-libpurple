@@ -12,6 +12,7 @@
 //purple includes
 #include <xmlnode.h>
 #include <plugin.h>
+#include <cmds.h>
 
 #define CAMPFIRE_MESSAGE_TEXT "TextMessage"
 #define	CAMPFIRE_MESSAGE_PASTE "PasteMessage"
@@ -22,6 +23,15 @@
 #define	CAMPFIRE_MESSAGE_TIME "TimestampMessage"
 #define	CAMPFIRE_MESSAGE_KICK "KickMessage"
 #define	CAMPFIRE_MESSAGE_UPLOAD "UploadMessage"
+#define CAMPFIRE_MESSAGE_TOPIC "TopicChangeMessage"
+#define CAMPFIRE_MESSAGE_GUESTALLOW "AllowGuestsMessage"
+#define CAMPFIRE_MESSAGE_GUESTDENY "DisallowGuestsMessage"
+
+#define CAMPFIRE_CMD_ME "me"
+#define CAMPFIRE_CMD_PLAY "play"
+//not really commands but we'll implement them to emulate web interface
+#define CAMPFIRE_CMD_ROOM "room"
+#define CAMPFIRE_CMD_TOPIC "topic"
 
 typedef struct _CampfireMessage {
 	gchar *id;
@@ -38,10 +48,12 @@ typedef struct _CampfireRoom {
 	GList *my_message_ids;
 } CampfireRoom;
 
-void campfire_message_send(CampfireConn *campfire, int id, const char *message);
+void campfire_message_send(CampfireConn *campfire, int id, const char *message, char *msg_type);
 void campfire_room_query(CampfireConn *campfire);
 void campfire_room_join(CampfireConn *campfire, gchar *room_id, gchar *room_name);
 void campfire_room_leave(CampfireConn *campfire, gint id);
+PurpleCmdRet campfire_parse_cmd(PurpleConversation *conv, const gchar *cmd,
+										 gchar **args, gchar **error, void *data);
 
 //internal functions
 void campfire_fetch_first_messages(CampfireConn *campfire, gchar *room_id);
