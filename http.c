@@ -153,8 +153,12 @@ gint campfire_http_response(PurpleSslConnection *gsc, CampfireSslTransaction *xa
 	{
 		if (xaction->http_response->len == 0)
 		{
-			purple_debug_info("campfire", "TRY AGAIN\n");
+			purple_debug_info("campfire", "TRY AGAIN (returning)\n");
 			return CAMPFIRE_HTTP_RESPONSE_STATUS_TRY_AGAIN;
+		}
+		else
+		{
+			purple_debug_info("campfire", "EAGAIN (continuing)\n");
 		}
 	}
 	else if (len == 0)
@@ -183,7 +187,7 @@ gint campfire_http_response(PurpleSslConnection *gsc, CampfireSslTransaction *xa
 	 */
 	//g_string_append(xaction->http_response, "\n");
 	purple_debug_info("campfire", "HTTP response size: %lu bytes\n", xaction->http_response->len);
-	purple_debug_info("campfire", "HTTP response string:\n%s\n", xaction->http_response->str);
+	//purple_debug_info("campfire", "HTTP response string:\n%s\n", xaction->http_response->str);
 
 	// look for the status
 	if(campfire_get_http_status_from_response(&status, xaction->http_response))
@@ -202,9 +206,10 @@ gint campfire_http_response(PurpleSslConnection *gsc, CampfireSslTransaction *xa
 	
 	// look for the content
 	content_start = g_strstr_len(xaction->http_response->str, xaction->http_response->len, blank_line);
+	content_start += strlen(blank_line) * sizeof(gchar); // account for \r\n\r\n
 	if (content_start)
 	{
-		purple_debug_info("campfire", "content: %s\n", content_start);
+		//purple_debug_info("campfire", "content: %s\n", content_start);
 	}
 	else 
 	{
@@ -215,9 +220,8 @@ gint campfire_http_response(PurpleSslConnection *gsc, CampfireSslTransaction *xa
 		return CAMPFIRE_HTTP_RESPONSE_STATUS_NO_CONTENT;
 	}
 
-	content_start += 4 * sizeof(gchar); // account for \r\n\r\n
-	size_content_received =    (unsigned long)xaction->http_response->str
-	                        +  xaction->http_response->len
+	size_content_received =   (unsigned long)xaction->http_response->str
+	                        + xaction->http_response->len
 	                        - (unsigned long)content_start; // pointer math
 	purple_debug_info("campfire", "content-length debug: %lu %lu\n",
 	                  xaction->content_len, size_content_received);
