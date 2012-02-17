@@ -302,7 +302,7 @@ gboolean campfire_room_check(CampfireConn *campfire)
 	if(!campfire->message_timer)
 	{
 		//call this function again periodically to check for new users
-		//campfire->message_timer = purple_timeout_add_seconds(3, (GSourceFunc)campfire_room_check, campfire);
+		campfire->message_timer = purple_timeout_add_seconds(3, (GSourceFunc)campfire_room_check, campfire);
 	}
 
 	return TRUE;
