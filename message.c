@@ -158,7 +158,6 @@ void campfire_room_query(CampfireConn *campfire)
 	xaction->campfire = campfire;
 	xaction->response_cb = (PurpleSslInputFunction)(campfire_room_query_callback);
 	xaction->response_cb_data = xaction;
-	xaction->http_response = NULL;
 	campfire_http_request(xaction, "/rooms.xml", "GET", NULL);
 	campfire_queue_xaction(campfire, xaction, PURPLE_INPUT_READ|PURPLE_INPUT_WRITE);
 }
