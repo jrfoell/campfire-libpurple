@@ -329,7 +329,7 @@ void campfire_ssl_handler(CampfireConn *campfire, PurpleSslConnection *gsc, Purp
 	status = campfire_http_response(gsc, xaction, cond, &(xaction->xml_response));
 	purple_debug_info("campfire", "http status: %d\n", status);
 
-	if (status == 200)
+	if (status == 200 || status == 201)
 	{
 		xaction->xml_response = xmlnode_from_str(xaction->http_response.content->str, -1);
 		if (xaction && xaction->response_cb)
@@ -338,14 +338,14 @@ void campfire_ssl_handler(CampfireConn *campfire, PurpleSslConnection *gsc, Purp
 		}
 		cleanup = TRUE;
 	}
-	else if (status < 0)
+	else if (status == 0) //received partial content
+	{
+		cleanup = FALSE;		
+	}
+	else //status < 0 or some other http status we don't expect
 	{
 		close_ssl = TRUE;
 		cleanup = TRUE;
-	}
-	else
-	{
-		cleanup = FALSE;
 	}
 
 	if (close_ssl && campfire->gsc)
