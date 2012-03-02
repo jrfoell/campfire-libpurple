@@ -203,6 +203,7 @@ gint campfire_http_response(PurpleSslConnection *gsc, CampfireSslTransaction *xa
 	gchar buf[1024];
 	GString *ssl_input = g_string_new("");
 	gint len, errsv = 0;
+	gint status = 0;
 	CampfireHttpResponse *response = &xaction->http_response;
 
 	if (response->rx_state == CAMPFIRE_HTTP_RX_DONE)
@@ -279,22 +280,25 @@ gint campfire_http_response(PurpleSslConnection *gsc, CampfireSslTransaction *xa
 			{
 				campfire_process_http_content(response);
 				response->rx_state = CAMPFIRE_HTTP_RX_DONE;
+				status = response->status;
 			}
 			break;
 		case CAMPFIRE_HTTP_RX_DONE:
 			purple_debug_info("campfire", "CAMPFIRE_HTTP_RX_DONE\n");
 			g_string_erase(ssl_input, 0, -1); /* consume input */
+			status = response->status;
 			break;
 		default:
 			g_string_erase(ssl_input, 0, -1); /* consume input */
+			status = -1;
 			break;
 		}
 	}
 
 	/**********************************************************************
-	 * return http status code: -1=error, 0=input_ not_received
+	 * return http status code: -1=error, 0=input_not_received
 	 *********************************************************************/
-	return response->status;
+	return status;
 }
 
 void campfire_ssl_handler(CampfireConn *campfire, PurpleSslConnection *gsc, PurpleInputCondition cond)
