@@ -406,8 +406,16 @@ void campfire_ssl_handler(CampfireConn *campfire, PurpleSslConnection *gsc, Purp
 	}			
 }
 
-/* prototype */
+/*
+ * this prototype is needed because the next two functions call each other.
+ */
 static void campfire_ssl_connect(CampfireConn *campfire, PurpleInputCondition cond, gboolean from_connection_callback);
+
+/* This is just an itermediate function:
+ * It is called by lower level purple stuff when the ssl connection is established.
+ * It merely calls 'campfire_ssl_connect' with an extra argument to denote that it's
+ * coming from the callback.
+ */
 static void campfire_ssl_connect_cb(CampfireConn *campfire, PurpleInputCondition cond)
 {
 	campfire_ssl_connect(campfire, cond, TRUE);
@@ -456,7 +464,13 @@ static void campfire_ssl_connect(CampfireConn *campfire, PurpleInputCondition co
 	else
 	{
 		purple_debug_info("campfire", "previous ssl connection\n");
-		if (from_connection_callback)
+		/* we want to write our http request to the ssl connection
+		 * WHENEVER this is called from the callback (meaning we've JUST NOW established
+		 * the connection). OR when the first transaction is added to the queue on an
+		 * OPEN ssl connection
+		 */
+		if (    from_connection_callback
+		     || g_list_length(campfire->queue) == 1)
 		{
 			/* campfire_ssl_handler is the ONLY input handler we EVER use
 			 * So... if there is already an input handler present (inpa > 0),
@@ -477,7 +491,7 @@ static void campfire_ssl_connect(CampfireConn *campfire, PurpleInputCondition co
 
 void campfire_queue_xaction(CampfireConn *campfire, CampfireSslTransaction *xaction, PurpleInputCondition cond)
 {
-	gboolean from_callback = FALSE;
+	gboolean from_callback = FALSE; /* this is not the ssl connection callback */
 	purple_debug_info("campfire", "%s input condition: %i\n", __FUNCTION__, cond);
 	campfire->queue = g_list_append(campfire->queue, xaction);
 	purple_debug_info("campfire", "queue length %d\n", g_list_length(campfire->queue));
