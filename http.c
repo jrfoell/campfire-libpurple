@@ -58,7 +58,7 @@ static gint campfire_get_http_status_from_header(gint *status, GString *header)
 {
 	gchar *str, *found_str, *extra_chars;
 	gchar prefix[] = "\r\nStatus: ";
-	gsize prefix_size = sizeof(prefix) - 1; /* this sizeof() includes the NULL */
+	gsize prefix_size = strlen(prefix);
 	gint tmp;
 
 	found_str = g_strstr_len(header->str, header->len, prefix);
@@ -83,7 +83,7 @@ static gint campfire_get_content_length_from_header(gsize *cl, GString *header)
 {
 	gchar *str, *found_str, *extra_chars, *eol;
 	gchar prefix[] = "\r\nContent-Length: ";
-	gsize prefix_size = sizeof(prefix) - 1; /* this sizeof() includes the NULL */
+	gsize prefix_size = strlen(prefix);
 	gsize rest_of_header_size;
 	gsize cl_size;
 	gsize tmp;
@@ -99,17 +99,17 @@ static gint campfire_get_content_length_from_header(gsize *cl, GString *header)
 	{
 		return 1;
 	}
-	cl_size = eol - found_str + 1;
+	cl_size = eol - found_str;
 	purple_debug_info("campfire","content length str len = %lu\n", cl_size);
-	purple_debug_info("campfire","%p %p -%c- -%c- \n", found_str, eol, found_str[0], eol[0]);
-	str = g_malloc0(cl_size);
-	g_strlcpy(str, found_str, cl_size);
+	str = g_malloc0(cl_size + 1);
+	g_strlcpy(str, found_str, cl_size + 1);
 	tmp = g_ascii_strtoll(str, &extra_chars, 10);
 	g_free(str);
 	if (tmp == 0  && extra_chars == str) {
 		*cl = 0;
 		return 1;
 	}
+	purple_debug_info("campfire","content length: %lu\n", tmp);
 	*cl = tmp;
 	return 0;
 }
@@ -136,7 +136,7 @@ static void campfire_consume_http_header(CampfireHttpResponse *response, GString
 	gsize header_len;
 	if (header_end)
 	{
-		header_end += sizeof(blank_line);
+		header_end += strlen(blank_line);
 		header_len = header_end - ssl_input->str;
 	}
 	else
@@ -152,7 +152,7 @@ static gboolean campfire_http_header_received(CampfireHttpResponse *response)
 	gboolean received = FALSE;
 	gchar blank_line[] = "\r\n\r\n";
 	gchar *header_end;
-	header_end = g_strstr_len(response->header->str, response->header->len, blank_line);
+	header_end = g_strstr_len(response->response->str, response->response->len, blank_line);
 	if (header_end)
 	{
 		received = TRUE;
@@ -192,7 +192,7 @@ static gboolean campfire_http_content_received(CampfireHttpResponse *response)
  */
 static void campfire_process_http_content(CampfireHttpResponse *response)
 {
-	gsize content_start_index = response->header->len + 4;
+	gsize content_start_index = response->header->len;
 	response->content = g_string_new("");
 	g_string_append(response->content, &response->response->str[content_start_index]);
 }
@@ -264,6 +264,7 @@ gint campfire_http_response(PurpleSslConnection *gsc, CampfireSslTransaction *xa
 	while (!ssl_input_consumed(ssl_input)) {
 		switch (response->rx_state) {
 		case CAMPFIRE_HTTP_RX_HEADER:
+			purple_debug_info("campfire", "CAMPFIRE_HTTP_RX_HEADER\n");
 			campfire_consume_http_header(response, ssl_input);
 			if (campfire_http_header_received(response))
 			{
@@ -272,6 +273,7 @@ gint campfire_http_response(PurpleSslConnection *gsc, CampfireSslTransaction *xa
 			}
 			break;
 		case CAMPFIRE_HTTP_RX_CONTENT:
+			purple_debug_info("campfire", "CAMPFIRE_HTTP_RX_CONTENT\n");
 			campfire_consume_http_content(response, ssl_input);
 			if (campfire_http_content_received(response))
 			{
@@ -280,6 +282,7 @@ gint campfire_http_response(PurpleSslConnection *gsc, CampfireSslTransaction *xa
 			}
 			break;
 		case CAMPFIRE_HTTP_RX_DONE:
+			purple_debug_info("campfire", "CAMPFIRE_HTTP_RX_DONE\n");
 			g_string_erase(ssl_input, 0, -1); /* consume input */
 			break;
 		default:
