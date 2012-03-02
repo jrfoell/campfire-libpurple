@@ -406,15 +406,33 @@ void campfire_ssl_handler(CampfireConn *campfire, PurpleSslConnection *gsc, Purp
 	}			
 }
 
-void campfire_ssl_connect(CampfireConn *campfire, PurpleInputCondition cond)
+/* prototype */
+static gboolean campfire_ssl_connect(CampfireConn *campfire, PurpleInputCondition cond, gboolean from_connection_callback);
+static void campfire_ssl_connect_cb(CampfireConn *campfire, PurpleInputCondition cond)
+{
+	campfire_ssl_connect(campfire, cond, TRUE);
+}
+
+static gboolean campfire_ssl_connect(CampfireConn *campfire, PurpleInputCondition cond, gboolean from_connection_callback)
 {
 	GList *first = NULL;
 	CampfireSslTransaction *xaction = NULL;
+	static gboolean connecting = FALSE;
+
+	if (from_connection_callback)
+	{
+		connecting = FALSE;
+	}
+
+	if (connecting)
+	{
+		return TRUE;
+	}
 
 	purple_debug_info("campfire", "%s\n", __FUNCTION__);
 	if(!campfire)
 	{
-		return;
+		return FALSE;
 	}
 	else
 	{
@@ -423,7 +441,7 @@ void campfire_ssl_connect(CampfireConn *campfire, PurpleInputCondition cond)
 
 	if(!first)
 	{
-		return;
+		return FALSE;
 	}
 	else
 	{
@@ -432,16 +450,17 @@ void campfire_ssl_connect(CampfireConn *campfire, PurpleInputCondition cond)
 
 	if(!xaction)
 	{
-		return;
+		return FALSE;
 	}
 
 	if(!campfire->gsc)
 	{
 		purple_debug_info("campfire", "new ssl connection\n");
+		connecting = TRUE;
 		campfire->gsc = purple_ssl_connect(campfire->account,
 		                                   campfire->hostname,
 		                                   443,
-		                                   (PurpleSslInputFunction)(campfire_ssl_connect),
+		                                   (PurpleSslInputFunction)(campfire_ssl_connect_cb),
 		                                   campfire_ssl_failure,
 		                                   campfire);
 		purple_debug_info("campfire", "new ssl connection kicked off.\n");
@@ -465,12 +484,18 @@ void campfire_ssl_connect(CampfireConn *campfire, PurpleInputCondition cond)
 			purple_ssl_write(campfire->gsc, xaction->http_request->str, xaction->http_request->len);
 		}
 	}
+	return FALSE;
 }
 
 void campfire_queue_xaction(CampfireConn *campfire, CampfireSslTransaction *xaction, PurpleInputCondition cond)
 {
+	gboolean trying_to_connect;
+	gboolean from_callback = FALSE;
 	purple_debug_info("campfire", "%s input condition: %i\n", __FUNCTION__, cond);
 	campfire->queue = g_list_append(campfire->queue, xaction);
 	purple_debug_info("campfire", "queue length %d\n", g_list_length(campfire->queue));
-	campfire_ssl_connect(campfire, cond);
+	do
+	{
+		trying_to_connect = campfire_ssl_connect(campfire, cond, from_callback);
+	} while (trying_to_connect);
 }
