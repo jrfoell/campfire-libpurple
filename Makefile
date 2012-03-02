@@ -27,14 +27,6 @@ LDFLAGS=-shared
 $(LIBNAME): $(C_OBJS)
 	$(LD) $(LDFLAGS) -o $@ $^ $(PURPLE_LIBS)
 
-.PHONY: testers
-
-testers: \
-    tester_roomparse
-
-tester_roomparse:  xmlnode_roomlist_parse.c
-	$(CC) $(CFLAGS_PURPLE) -o $@ $^ $(PURPLE_LIBS)
-
 PIDGIN:=$(shell which pidgin)
 PIDGIN_BIN_DIR:=$(strip $(shell dirname $(PIDGIN)))
 PREFIX=$(strip $(PIDGIN_BIN_DIR)/..)
@@ -59,4 +51,4 @@ uninstall: $(LIBNAME)
 clean:
 	-rm *.o
 	-rm $(LIBNAME)
-	-rm tester_roomparse
+
