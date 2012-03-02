@@ -4,6 +4,9 @@
 //purple includes
 #include <debug.h>
 
+//internal function prototype
+void campfire_print_messages(CampfireSslTransaction *xaction, PurpleSslConnection *gsc, PurpleInputCondition cond);
+
 CampfireMessage * campfire_get_message(xmlnode *xmlmessage)
 {
 	xmlnode *xmlbody = NULL, *xmluser_id = NULL, *xmltime = NULL, *xmltype = NULL, *xmlid = NULL;
@@ -53,113 +56,6 @@ CampfireMessage * campfire_get_message(xmlnode *xmlmessage)
 		msg->message = body;
 	}
 	return msg;
-}
-
-void campfire_message_send_callback(CampfireSslTransaction *xaction, PurpleSslConnection *gsc,
-									PurpleInputCondition cond)
-{
-	CampfireRoom *room = g_hash_table_lookup(xaction->campfire->rooms, xaction->room_id);	
-	CampfireMessage *msg = campfire_get_message(xaction->xml_response);
-	GList *msgs = NULL;
-	CampfireSslTransaction *xaction2 = NULL;
-
-	//pretty much the same as campfire_message_callback
-	//but this one only processes one message
-	purple_debug_info("campfire", "%s\n", __FUNCTION__);
-	
-	msgs = g_list_append(msgs, msg);
-
-	//save this message id so we don't set it as last_message_id (or re-print it)
-	if(!room->my_message_ids)
-	{
-		room->my_message_ids = g_list_append(room->my_message_ids, msg->id);
-	}
-
-	//print the messages out
-	purple_debug_info("campfire", "calling print messages\n");
-				
-	//create a new xaction
-	xaction2 = g_new0(CampfireSslTransaction, 1);
-	xaction2->campfire = xaction->campfire;
-	xaction2->response_cb = (PurpleSslInputFunction)campfire_print_messages;
-	xaction2->response_cb_data = xaction2;
-	xaction2->messages = msgs;
-	xaction2->my_message = TRUE; //let campfire_print_messages know where we're coming from
-	xaction2->room_id = g_strdup(xaction->room_id);
-	
-	campfire_print_messages(xaction2, xaction->campfire->gsc, PURPLE_INPUT_READ);
-}
-
-void campfire_message_send(CampfireConn *campfire, int id, const char *message, char *msg_type)
-{	
-	gchar *room_id = g_strdup_printf("%i", id);
-	xmlnode *xmlmessage = NULL, *xmlchild = NULL;
-	CampfireSslTransaction *xaction = NULL;
-	GString *uri = NULL;
-
-	if(!msg_type)
-		msg_type = CAMPFIRE_MESSAGE_TEXT;
-	
-	xmlmessage = xmlnode_new("message");
-	xmlnode_set_attrib(xmlmessage, "type", msg_type);	
-	xmlchild = xmlnode_new_child(xmlmessage, "body");
-	xmlnode_insert_data(xmlchild, message, -1);
-	
-	uri = g_string_new("/room/");
-	g_string_append(uri, room_id);
-	g_string_append(uri, "/speak.xml");
-
-	xaction = g_new0(CampfireSslTransaction, 1);
-	xaction->campfire = campfire;
-	xaction->response_cb = (PurpleSslInputFunction)campfire_message_send_callback;
-	xaction->response_cb_data = xaction;
-	xaction->room_id = g_strdup(room_id);
-
-	purple_debug_info("campfire", "Sending message %s\n", xmlnode_to_str(xmlmessage, NULL));
-		
-	campfire_http_request(xaction, uri->str, "POST", xmlmessage);
-	g_string_free(uri, TRUE);
-	g_free(room_id);
-	xmlnode_free(xmlmessage);
-	campfire_queue_xaction(campfire, xaction, PURPLE_INPUT_READ|PURPLE_INPUT_WRITE);
-}
-
-void campfire_room_query_callback(CampfireSslTransaction *xaction, PurpleSslConnection *gsc,
-                                  PurpleInputCondition cond)
-{
-	xmlnode *xmlroom = NULL, *xmlname = NULL, *xmltopic = NULL, *xmlid = NULL;
-	gchar *name = NULL, *topic = NULL, *id = NULL;
-	PurpleRoomlistRoom *room = NULL;
-
-	purple_debug_info("campfire", "processing xml...\n");
-	xmlroom = xmlnode_get_child(xaction->xml_response, "room");
-	while (xmlroom != NULL)
-	{
-		xmlname = xmlnode_get_child(xmlroom, "name");
-		name = xmlnode_get_data(xmlname);
-		xmltopic = xmlnode_get_child(xmlroom, "topic");
-		topic = xmlnode_get_data(xmltopic);
-		xmlid = xmlnode_get_child(xmlroom, "id");
-		id = xmlnode_get_data(xmlid);
-	
-		room = purple_roomlist_room_new(PURPLE_ROOMLIST_ROOMTYPE_ROOM, name, NULL);
-		purple_roomlist_room_add_field(xaction->campfire->roomlist, room, topic);
-		purple_roomlist_room_add_field(xaction->campfire->roomlist, room, id);
-		purple_roomlist_room_add(xaction->campfire->roomlist, room);
-		xmlroom = xmlnode_get_next_twin(xmlroom);
-	}
-	purple_roomlist_set_in_progress(xaction->campfire->roomlist, FALSE);
-}
-
-void campfire_room_query(CampfireConn *campfire)
-{
-	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);
-
-	xaction->campfire = campfire;
-	xaction->response_cb = (PurpleSslInputFunction)(campfire_room_query_callback);
-	xaction->response_cb_data = xaction;
-	campfire_http_request(xaction, "/rooms.xml", "GET", NULL);
-	campfire_queue_xaction(campfire, xaction, PURPLE_INPUT_READ|PURPLE_INPUT_WRITE);
 }
 
 void campfire_userlist_callback(CampfireSslTransaction *xaction, PurpleSslConnection *gsc,
@@ -245,6 +141,42 @@ void campfire_userlist_callback(CampfireSslTransaction *xaction, PurpleSslConnec
 	
 }
 
+void campfire_message_callback(CampfireSslTransaction *xaction, PurpleSslConnection *gsc,
+                               PurpleInputCondition cond)
+{
+	xmlnode *xmlmessage = NULL;	
+	GList *msgs = NULL;
+	CampfireMessage *msg = NULL;
+	CampfireSslTransaction *xaction2 = NULL;
+	
+	purple_debug_info("campfire", "%s\n", __FUNCTION__);
+
+	xmlmessage = xmlnode_get_child(xaction->xml_response, "message");
+
+	while (xmlmessage != NULL)
+	{
+		msg = campfire_get_message(xmlmessage);
+		if(msg)
+			msgs = g_list_append(msgs, msg);
+		
+		xmlmessage = xmlnode_get_next_twin(xmlmessage);
+	}
+
+	//print the messages out
+	purple_debug_info("campfire", "calling print messages\n");
+				
+	//create a new xaction
+	xaction2 = g_new0(CampfireSslTransaction, 1);
+	xaction2->campfire = xaction->campfire;
+	xaction2->response_cb = (PurpleSslInputFunction)campfire_print_messages;
+	xaction2->response_cb_data = xaction2;
+	xaction2->messages = msgs;
+	xaction2->room_id = g_strdup(xaction->room_id);
+	xaction2->first_check = xaction->first_check;
+
+	campfire_print_messages(xaction2, xaction->campfire->gsc, PURPLE_INPUT_READ);
+}
+
 gboolean campfire_room_check(CampfireConn *campfire)	
 {
 	GList *rooms = g_hash_table_get_values(campfire->rooms);
@@ -311,225 +243,6 @@ gboolean campfire_room_check(CampfireConn *campfire)
 
 	return TRUE;
 }
-
-void campfire_room_update_callback(CampfireSslTransaction *xaction, PurpleSslConnection *gsc,
-                                PurpleInputCondition cond)
-{
-	campfire_room_check(xaction->campfire);
-}
-
-void campfire_room_update(CampfireConn *campfire, gint id, gchar *topic, gchar *room_name)
-{	
-	gchar *room_id = g_strdup_printf("%i", id);
-	xmlnode *xmlroom = NULL, *xmltopic = NULL, *xmlname = NULL;
-	CampfireSslTransaction *xaction = NULL;
-	GString *uri = NULL;
-	
-	xmlroom = xmlnode_new("room");
-	if(topic)
-	{
-		xmltopic = xmlnode_new_child(xmlroom, "topic");
-		xmlnode_insert_data(xmltopic, topic, -1);
-	}
-
-	if(room_name)
-	{
-		xmlname = xmlnode_new_child(xmlroom, "name");
-		xmlnode_insert_data(xmlname, room_name, -1);
-	}
-	
-	uri = g_string_new("/room/");
-	g_string_append(uri, room_id);
-	g_string_append(uri, ".xml");
-
-	xaction = g_new0(CampfireSslTransaction, 1);
-	xaction->campfire = campfire;
-	xaction->response_cb = (PurpleSslInputFunction)campfire_room_update_callback;
-	xaction->response_cb_data = xaction;
-	xaction->room_id = g_strdup(room_id);
-
-	purple_debug_info("campfire", "Sending message %s\n", xmlnode_to_str(xmlroom, NULL));
-		
-	campfire_http_request(xaction, uri->str, "PUT", xmlroom);
-	g_string_free(uri, TRUE);
-	g_free(room_id);
-	xmlnode_free(xmlroom);
-	campfire_queue_xaction(campfire, xaction, PURPLE_INPUT_READ|PURPLE_INPUT_WRITE);
-}
-
-PurpleCmdRet campfire_parse_cmd(PurpleConversation *conv, const gchar *cmd,
-										 gchar **args, gchar **error, void *data)
-{
-	PurpleConnection *gc = purple_conversation_get_gc(conv);
-	PurpleConvChat *chat = PURPLE_CONV_CHAT(conv);
-	GString *message = NULL;
-	
-	if (!gc)
-		return PURPLE_CMD_RET_FAILED;
-	
-	purple_debug_info("campfire", "cmd %s: args[0]: %s\n", cmd, args[0]);
-
-	if(g_strcmp0(cmd, CAMPFIRE_CMD_ME) == 0)
-	{
-		//send a message
-		message = g_string_new("*");
-		g_string_append(message, args[0]);
-		g_string_append(message, "*");
-		
-		campfire_message_send(data, chat->id, message->str, CAMPFIRE_MESSAGE_TEXT);
-	}
-	else if(g_strcmp0(cmd, CAMPFIRE_CMD_PLAY) == 0)
-	{
-		//send a message
-		campfire_message_send(data, chat->id, args[0], CAMPFIRE_MESSAGE_SOUND);
-	}
-	else if(g_strcmp0(cmd, CAMPFIRE_CMD_TOPIC) == 0)
-	{
-		//do a room request
-		if(args[0])
-			campfire_room_update(data, chat->id, args[0], NULL);
-		else
-			campfire_room_update(data, chat->id, "", NULL);
-	}
-	else if(g_strcmp0(cmd, CAMPFIRE_CMD_ROOM) == 0)
-	{
-		//do a room request
-		campfire_room_update(data, chat->id, NULL, args[0]);
-	}
-	
-	return PURPLE_CMD_RET_OK;
-}
-
-void campfire_message_callback(CampfireSslTransaction *xaction, PurpleSslConnection *gsc,
-                               PurpleInputCondition cond)
-{
-	xmlnode *xmlmessage = NULL;	
-	GList *msgs = NULL;
-	CampfireMessage *msg = NULL;
-	CampfireSslTransaction *xaction2 = NULL;
-	
-	purple_debug_info("campfire", "%s\n", __FUNCTION__);
-
-	xmlmessage = xmlnode_get_child(xaction->xml_response, "message");
-
-	while (xmlmessage != NULL)
-	{
-		msg = campfire_get_message(xmlmessage);
-		if(msg)
-			msgs = g_list_append(msgs, msg);
-		
-		xmlmessage = xmlnode_get_next_twin(xmlmessage);
-	}
-
-	//print the messages out
-	purple_debug_info("campfire", "calling print messages\n");
-				
-	//create a new xaction
-	xaction2 = g_new0(CampfireSslTransaction, 1);
-	xaction2->campfire = xaction->campfire;
-	xaction2->response_cb = (PurpleSslInputFunction)campfire_print_messages;
-	xaction2->response_cb_data = xaction2;
-	xaction2->messages = msgs;
-	xaction2->room_id = g_strdup(xaction->room_id);
-	xaction2->first_check = xaction->first_check;
-
-	campfire_print_messages(xaction2, xaction->campfire->gsc, PURPLE_INPUT_READ);
-}
-
-void campfire_fetch_first_messages(CampfireConn *campfire, gchar *room_id)
-{
-	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);
-	gint limit = purple_account_get_int(campfire->account, "limit", 10);
-	GString *uri = NULL;
-	
-	purple_debug_info("campfire", "%s\n", __FUNCTION__);
-
-	uri = g_string_new("/room/");
-	g_string_append(uri, room_id);
-	g_string_append(uri, "/recent.xml?limit=");
-	g_string_append(uri, g_strdup_printf("%i", limit));
-	
-
-	xaction->campfire = campfire;
-	xaction->response_cb = (PurpleSslInputFunction)campfire_message_callback;
-	xaction->response_cb_data = xaction;
-	xaction->room_id = g_strdup(room_id);
-	xaction->first_check = TRUE;
-
-	campfire_http_request(xaction, uri->str, "GET", NULL);
-	g_string_free(uri, TRUE);
-	campfire_queue_xaction(campfire, xaction, PURPLE_INPUT_READ|PURPLE_INPUT_WRITE);
-}
-
-void campfire_room_join_callback(CampfireSslTransaction *xaction, PurpleSslConnection *gsc,
-				    PurpleInputCondition cond)
-{
-	CampfireRoom *room = g_hash_table_lookup(xaction->campfire->rooms, xaction->room_id);
-	purple_debug_info("campfire", "joining room: %s with id: %s\n", room->name, room->id);
-	serv_got_joined_chat(xaction->campfire->gc, g_ascii_strtoll(xaction->room_id, NULL, 10), room->name);
-	campfire_fetch_first_messages(xaction->campfire, xaction->room_id);
-}
-
-void campfire_room_join(CampfireConn *campfire, gchar *id, gchar *name)
-{
-	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);
-	GString *uri = g_string_new("/room/");
-	CampfireRoom *room = NULL;
-
-	g_string_append(uri, id);
-	g_string_append(uri, "/join.xml");
-
-	if(!campfire->rooms)
-	{
-		campfire->rooms = g_hash_table_new(g_str_hash, g_str_equal);
-	}
-	purple_debug_info("campfire", "add room to list %s ID: %s\n", name, id);
-	room = g_new0(CampfireRoom, 1);
-	room->name = g_strdup(name);
-	room->id = g_strdup(id);
-	g_hash_table_replace(campfire->rooms, id, room);
-
-	xaction->campfire = campfire;
-	xaction->response_cb = (PurpleSslInputFunction)campfire_room_join_callback;
-	xaction->response_cb_data = xaction;
-	xaction->room_id = g_strdup(id);
-	purple_debug_info("campfire", "ID: %s\n", xaction->room_id);
-
-	campfire_http_request(xaction, uri->str, "POST", NULL);
-	g_string_free(uri, TRUE);
-	campfire_queue_xaction(campfire, xaction, PURPLE_INPUT_READ|PURPLE_INPUT_WRITE);
-}
-
-void campfire_room_leave_callback(CampfireSslTransaction *xaction, PurpleSslConnection *gsc,
-				    PurpleInputCondition cond)
-{
-	CampfireRoom *room = g_hash_table_lookup(xaction->campfire->rooms, xaction->room_id);
-	purple_debug_info("campfire", "leaving room: %s\n", room->name);
-	serv_got_chat_left(xaction->campfire->gc, g_ascii_strtoll(xaction->room_id, NULL, 10));
-	gboolean left = g_hash_table_remove(xaction->campfire->rooms, xaction->room_id);
-	purple_debug_info("campfire", "left room: %s\n", left ? "true" : "false");
-}
-
-void campfire_room_leave(CampfireConn *campfire, gint id)
-{
-	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);
-	GString *uri = NULL;
-
-	xaction->campfire = campfire;
-	xaction->response_cb = (PurpleSslInputFunction)campfire_room_leave_callback;
-	xaction->response_cb_data = xaction;
-	xaction->room_id = g_strdup_printf("%d", id);
-
-	uri = g_string_new("/room/");
-	g_string_append(uri, xaction->room_id);
-	g_string_append(uri, "/leave.xml");
-
-	campfire_http_request(xaction, uri->str, "POST", NULL);
-	g_string_free(uri, TRUE);
-	campfire_queue_xaction(campfire, xaction, PURPLE_INPUT_READ|PURPLE_INPUT_WRITE);
-}
-
-
 
 /** also functions as a callback (to itself) */
 void campfire_print_messages(CampfireSslTransaction *xaction, PurpleSslConnection *gsc,
@@ -740,4 +453,293 @@ void campfire_print_messages(CampfireSslTransaction *xaction, PurpleSslConnectio
 			campfire_print_messages(xaction, gsc, cond);
 		}
 	}
+}
+
+void campfire_message_send_callback(CampfireSslTransaction *xaction, PurpleSslConnection *gsc,
+									PurpleInputCondition cond)
+{
+	CampfireRoom *room = g_hash_table_lookup(xaction->campfire->rooms, xaction->room_id);	
+	CampfireMessage *msg = campfire_get_message(xaction->xml_response);
+	GList *msgs = NULL;
+	CampfireSslTransaction *xaction2 = NULL;
+
+	//pretty much the same as campfire_message_callback
+	//but this one only processes one message
+	purple_debug_info("campfire", "%s\n", __FUNCTION__);
+	
+	msgs = g_list_append(msgs, msg);
+
+	//save this message id so we don't set it as last_message_id (or re-print it)
+	if(!room->my_message_ids)
+	{
+		room->my_message_ids = g_list_append(room->my_message_ids, msg->id);
+	}
+
+	//print the messages out
+	purple_debug_info("campfire", "calling print messages\n");
+				
+	//create a new xaction
+	xaction2 = g_new0(CampfireSslTransaction, 1);
+	xaction2->campfire = xaction->campfire;
+	xaction2->response_cb = (PurpleSslInputFunction)campfire_print_messages;
+	xaction2->response_cb_data = xaction2;
+	xaction2->messages = msgs;
+	xaction2->my_message = TRUE; //let campfire_print_messages know where we're coming from
+	xaction2->room_id = g_strdup(xaction->room_id);
+	
+	campfire_print_messages(xaction2, xaction->campfire->gsc, PURPLE_INPUT_READ);
+}
+
+void campfire_message_send(CampfireConn *campfire, int id, const char *message, char *msg_type)
+{	
+	gchar *room_id = g_strdup_printf("%i", id);
+	xmlnode *xmlmessage = NULL, *xmlchild = NULL;
+	CampfireSslTransaction *xaction = NULL;
+	GString *uri = NULL;
+
+	if(!msg_type)
+		msg_type = CAMPFIRE_MESSAGE_TEXT;
+	
+	xmlmessage = xmlnode_new("message");
+	xmlnode_set_attrib(xmlmessage, "type", msg_type);	
+	xmlchild = xmlnode_new_child(xmlmessage, "body");
+	xmlnode_insert_data(xmlchild, message, -1);
+	
+	uri = g_string_new("/room/");
+	g_string_append(uri, room_id);
+	g_string_append(uri, "/speak.xml");
+
+	xaction = g_new0(CampfireSslTransaction, 1);
+	xaction->campfire = campfire;
+	xaction->response_cb = (PurpleSslInputFunction)campfire_message_send_callback;
+	xaction->response_cb_data = xaction;
+	xaction->room_id = g_strdup(room_id);
+
+	purple_debug_info("campfire", "Sending message %s\n", xmlnode_to_str(xmlmessage, NULL));
+		
+	campfire_http_request(xaction, uri->str, "POST", xmlmessage);
+	g_string_free(uri, TRUE);
+	g_free(room_id);
+	xmlnode_free(xmlmessage);
+	campfire_queue_xaction(campfire, xaction, PURPLE_INPUT_READ|PURPLE_INPUT_WRITE);
+}
+
+void campfire_room_query_callback(CampfireSslTransaction *xaction, PurpleSslConnection *gsc,
+                                  PurpleInputCondition cond)
+{
+	xmlnode *xmlroom = NULL, *xmlname = NULL, *xmltopic = NULL, *xmlid = NULL;
+	gchar *name = NULL, *topic = NULL, *id = NULL;
+	PurpleRoomlistRoom *room = NULL;
+
+	purple_debug_info("campfire", "processing xml...\n");
+	xmlroom = xmlnode_get_child(xaction->xml_response, "room");
+	while (xmlroom != NULL)
+	{
+		xmlname = xmlnode_get_child(xmlroom, "name");
+		name = xmlnode_get_data(xmlname);
+		xmltopic = xmlnode_get_child(xmlroom, "topic");
+		topic = xmlnode_get_data(xmltopic);
+		xmlid = xmlnode_get_child(xmlroom, "id");
+		id = xmlnode_get_data(xmlid);
+	
+		room = purple_roomlist_room_new(PURPLE_ROOMLIST_ROOMTYPE_ROOM, name, NULL);
+		purple_roomlist_room_add_field(xaction->campfire->roomlist, room, topic);
+		purple_roomlist_room_add_field(xaction->campfire->roomlist, room, id);
+		purple_roomlist_room_add(xaction->campfire->roomlist, room);
+		xmlroom = xmlnode_get_next_twin(xmlroom);
+	}
+	purple_roomlist_set_in_progress(xaction->campfire->roomlist, FALSE);
+}
+
+void campfire_room_query(CampfireConn *campfire)
+{
+	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);
+
+	xaction->campfire = campfire;
+	xaction->response_cb = (PurpleSslInputFunction)(campfire_room_query_callback);
+	xaction->response_cb_data = xaction;
+	campfire_http_request(xaction, "/rooms.xml", "GET", NULL);
+	campfire_queue_xaction(campfire, xaction, PURPLE_INPUT_READ|PURPLE_INPUT_WRITE);
+}
+
+
+void campfire_room_update_callback(CampfireSslTransaction *xaction, PurpleSslConnection *gsc,
+                                PurpleInputCondition cond)
+{
+	campfire_room_check(xaction->campfire);
+}
+
+void campfire_room_update(CampfireConn *campfire, gint id, gchar *topic, gchar *room_name)
+{	
+	gchar *room_id = g_strdup_printf("%i", id);
+	xmlnode *xmlroom = NULL, *xmltopic = NULL, *xmlname = NULL;
+	CampfireSslTransaction *xaction = NULL;
+	GString *uri = NULL;
+	
+	xmlroom = xmlnode_new("room");
+	if(topic)
+	{
+		xmltopic = xmlnode_new_child(xmlroom, "topic");
+		xmlnode_insert_data(xmltopic, topic, -1);
+	}
+
+	if(room_name)
+	{
+		xmlname = xmlnode_new_child(xmlroom, "name");
+		xmlnode_insert_data(xmlname, room_name, -1);
+	}
+	
+	uri = g_string_new("/room/");
+	g_string_append(uri, room_id);
+	g_string_append(uri, ".xml");
+
+	xaction = g_new0(CampfireSslTransaction, 1);
+	xaction->campfire = campfire;
+	xaction->response_cb = (PurpleSslInputFunction)campfire_room_update_callback;
+	xaction->response_cb_data = xaction;
+	xaction->room_id = g_strdup(room_id);
+
+	purple_debug_info("campfire", "Sending message %s\n", xmlnode_to_str(xmlroom, NULL));
+		
+	campfire_http_request(xaction, uri->str, "PUT", xmlroom);
+	g_string_free(uri, TRUE);
+	g_free(room_id);
+	xmlnode_free(xmlroom);
+	campfire_queue_xaction(campfire, xaction, PURPLE_INPUT_READ|PURPLE_INPUT_WRITE);
+}
+
+PurpleCmdRet campfire_parse_cmd(PurpleConversation *conv, const gchar *cmd,
+										 gchar **args, gchar **error, void *data)
+{
+	PurpleConnection *gc = purple_conversation_get_gc(conv);
+	PurpleConvChat *chat = PURPLE_CONV_CHAT(conv);
+	GString *message = NULL;
+	
+	if (!gc)
+		return PURPLE_CMD_RET_FAILED;
+	
+	purple_debug_info("campfire", "cmd %s: args[0]: %s\n", cmd, args[0]);
+
+	if(g_strcmp0(cmd, CAMPFIRE_CMD_ME) == 0)
+	{
+		//send a message
+		message = g_string_new("*");
+		g_string_append(message, args[0]);
+		g_string_append(message, "*");
+		
+		campfire_message_send(data, chat->id, message->str, CAMPFIRE_MESSAGE_TEXT);
+	}
+	else if(g_strcmp0(cmd, CAMPFIRE_CMD_PLAY) == 0)
+	{
+		//send a message
+		campfire_message_send(data, chat->id, args[0], CAMPFIRE_MESSAGE_SOUND);
+	}
+	else if(g_strcmp0(cmd, CAMPFIRE_CMD_TOPIC) == 0)
+	{
+		//do a room request
+		if(args[0])
+			campfire_room_update(data, chat->id, args[0], NULL);
+		else
+			campfire_room_update(data, chat->id, "", NULL);
+	}
+	else if(g_strcmp0(cmd, CAMPFIRE_CMD_ROOM) == 0)
+	{
+		//do a room request
+		campfire_room_update(data, chat->id, NULL, args[0]);
+	}
+	
+	return PURPLE_CMD_RET_OK;
+}
+
+void campfire_fetch_first_messages(CampfireConn *campfire, gchar *room_id)
+{
+	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);
+	gint limit = purple_account_get_int(campfire->account, "limit", 10);
+	GString *uri = NULL;
+	
+	purple_debug_info("campfire", "%s\n", __FUNCTION__);
+
+	uri = g_string_new("/room/");
+	g_string_append(uri, room_id);
+	g_string_append(uri, "/recent.xml?limit=");
+	g_string_append(uri, g_strdup_printf("%i", limit));
+	
+
+	xaction->campfire = campfire;
+	xaction->response_cb = (PurpleSslInputFunction)campfire_message_callback;
+	xaction->response_cb_data = xaction;
+	xaction->room_id = g_strdup(room_id);
+	xaction->first_check = TRUE;
+
+	campfire_http_request(xaction, uri->str, "GET", NULL);
+	g_string_free(uri, TRUE);
+	campfire_queue_xaction(campfire, xaction, PURPLE_INPUT_READ|PURPLE_INPUT_WRITE);
+}
+
+void campfire_room_join_callback(CampfireSslTransaction *xaction, PurpleSslConnection *gsc,
+				    PurpleInputCondition cond)
+{
+	CampfireRoom *room = g_hash_table_lookup(xaction->campfire->rooms, xaction->room_id);
+	purple_debug_info("campfire", "joining room: %s with id: %s\n", room->name, room->id);
+	serv_got_joined_chat(xaction->campfire->gc, g_ascii_strtoll(xaction->room_id, NULL, 10), room->name);
+	campfire_fetch_first_messages(xaction->campfire, xaction->room_id);
+}
+
+void campfire_room_join(CampfireConn *campfire, gchar *id, gchar *name)
+{
+	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);
+	GString *uri = g_string_new("/room/");
+	CampfireRoom *room = NULL;
+
+	g_string_append(uri, id);
+	g_string_append(uri, "/join.xml");
+
+	if(!campfire->rooms)
+	{
+		campfire->rooms = g_hash_table_new(g_str_hash, g_str_equal);
+	}
+	purple_debug_info("campfire", "add room to list %s ID: %s\n", name, id);
+	room = g_new0(CampfireRoom, 1);
+	room->name = g_strdup(name);
+	room->id = g_strdup(id);
+	g_hash_table_replace(campfire->rooms, id, room);
+
+	xaction->campfire = campfire;
+	xaction->response_cb = (PurpleSslInputFunction)campfire_room_join_callback;
+	xaction->response_cb_data = xaction;
+	xaction->room_id = g_strdup(id);
+	purple_debug_info("campfire", "ID: %s\n", xaction->room_id);
+
+	campfire_http_request(xaction, uri->str, "POST", NULL);
+	g_string_free(uri, TRUE);
+	campfire_queue_xaction(campfire, xaction, PURPLE_INPUT_READ|PURPLE_INPUT_WRITE);
+}
+
+void campfire_room_leave_callback(CampfireSslTransaction *xaction, PurpleSslConnection *gsc,
+				    PurpleInputCondition cond)
+{
+	CampfireRoom *room = g_hash_table_lookup(xaction->campfire->rooms, xaction->room_id);
+	purple_debug_info("campfire", "leaving room: %s\n", room->name);
+	serv_got_chat_left(xaction->campfire->gc, g_ascii_strtoll(xaction->room_id, NULL, 10));
+	gboolean left = g_hash_table_remove(xaction->campfire->rooms, xaction->room_id);
+	purple_debug_info("campfire", "left room: %s\n", left ? "true" : "false");
+}
+
+void campfire_room_leave(CampfireConn *campfire, gint id)
+{
+	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);
+	GString *uri = NULL;
+
+	xaction->campfire = campfire;
+	xaction->response_cb = (PurpleSslInputFunction)campfire_room_leave_callback;
+	xaction->response_cb_data = xaction;
+	xaction->room_id = g_strdup_printf("%d", id);
+
+	uri = g_string_new("/room/");
+	g_string_append(uri, xaction->room_id);
+	g_string_append(uri, "/leave.xml");
+
+	campfire_http_request(xaction, uri->str, "POST", NULL);
+	g_string_free(uri, TRUE);
+	campfire_queue_xaction(campfire, xaction, PURPLE_INPUT_READ|PURPLE_INPUT_WRITE);
 }
