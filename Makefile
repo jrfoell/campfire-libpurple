@@ -1,6 +1,6 @@
 LIBNAME=libcampfire.so
-.PHONY: all
 
+.PHONY: all
 all: $(LIBNAME)
  
 C_SRCS:= campfire.c message.c http.c
@@ -8,7 +8,6 @@ C_SRCS:= campfire.c message.c http.c
 # Object file names using 'Substitution Reference'
 C_OBJS:=$(C_SRCS:.c=.o)
 
-PURPLE_LIBS:=$(shell pkg-config --libs purple)
 CC:=gcc
 LD:=$(CC)
 CFLAGS_PURPLE:=$(shell pkg-config --cflags purple)
@@ -19,35 +18,33 @@ CFLAGS:= \
     -DPIC -DENABLE_NLS \
     $(CFLAGS_PURPLE)
 
+LIBS_PURPLE:=$(shell pkg-config --libs purple)
 LDFLAGS=-shared
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) -o $@ $<
 
 $(LIBNAME): $(C_OBJS)
-	$(LD) $(LDFLAGS) -o $@ $^ $(PURPLE_LIBS)
+	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS_PURPLE)
 
-PIDGIN:=$(shell which pidgin)
-PIDGIN_BIN_DIR:=$(strip $(shell dirname $(PIDGIN)))
-PREFIX=$(strip $(PIDGIN_BIN_DIR)/..)
-PIDGIN_PLUGIN_DIR:=$(PREFIX)/lib/purple-2
+PLUGIN_DIR_PURPLE:=$(shell pkg-config --variable=plugindir purple)
+DATA_ROOT_DIR_PURPLE:=$(shell pkg-config --variable=datarootdir purple)
 
 .PHONY: install
 install: $(LIBNAME)
-	install -D $(LIBNAME) $(PIDGIN_PLUGIN_DIR)/$(LIBNAME)
-	install --mode=0644 campfire16.png $(PREFIX)/share/pixmaps/pidgin/protocols/16/campfire.png
-	install --mode=0644 campfire22.png $(PREFIX)/share/pixmaps/pidgin/protocols/22/campfire.png
-	install --mode=0644 campfire48.png $(PREFIX)/share/pixmaps/pidgin/protocols/48/campfire.png
+	install -D $(LIBNAME) $(PLUGIN_DIR_PURPLE)/$(LIBNAME)
+	install --mode=0644 campfire16.png $(DATA_ROOT_DIR_PURPLE)/pixmaps/pidgin/protocols/16/campfire.png
+	install --mode=0644 campfire22.png $(DATA_ROOT_DIR_PURPLE)/pixmaps/pidgin/protocols/22/campfire.png
+	install --mode=0644 campfire48.png $(DATA_ROOT_DIR_PURPLE)/pixmaps/pidgin/protocols/48/campfire.png
 	
 .PHONY: uninstall
 uninstall: $(LIBNAME)
-	rm $(PIDGIN_PLUGIN_DIR)/$(LIBNAME)
-	rm $(PREFIX)/share/pixmaps/pidgin/protocols/16/campfire.png
-	rm $(PREFIX)/share/pixmaps/pidgin/protocols/22/campfire.png
-	rm $(PREFIX)/share/pixmaps/pidgin/protocols/48/campfire.png
+	rm $(PLUGIN_DIR_PURPLE)/$(LIBNAME)
+	rm $(DATA_ROOT_DIR_PURPLE)/pixmaps/pidgin/protocols/16/campfire.png
+	rm $(DATA_ROOT_DIR_PURPLE)/pixmaps/pidgin/protocols/22/campfire.png
+	rm $(DATA_ROOT_DIR_PURPLE)/pixmaps/pidgin/protocols/48/campfire.png
 	
 .PHONY: clean
-
 clean:
 	-rm *.o
 	-rm $(LIBNAME)
