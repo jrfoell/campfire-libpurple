@@ -1,13 +1,13 @@
 #ifndef HTTP_H
 #define HTTP_H
 
-//local includes
+/*local includes*/
 #include "campfire.h"
 
-//system includes
+/*system includes*/
 #include <glib/gi18n.h>
 
-//purple includes
+/*purple includes*/
 #include <xmlnode.h>
 #include <plugin.h>
 
@@ -25,23 +25,26 @@
  * };
  */
 
-typedef enum campfire_http_rx_state {
+typedef enum campfire_http_rx_state
+{
 	CAMPFIRE_HTTP_RX_HEADER,
 	CAMPFIRE_HTTP_RX_CONTENT,
 	CAMPFIRE_HTTP_RX_DONE,
 } CampfireHttpRxState;
 
-typedef struct _CampfireHttpResponse {
-	GString             *response;
-	GString             *header;
-	GString             *content;
-	gsize               content_len;
-	gsize               content_received_len;
-	gint                status;
+typedef struct _CampfireHttpResponse
+{
+	GString *response;
+	GString *header;
+	GString *content;
+	gsize content_len;
+	gsize content_received_len;
+	gint status;
 	CampfireHttpRxState rx_state;
 } CampfireHttpResponse;
 
-typedef struct _CampfireSslTransaction {
+typedef struct _CampfireSslTransaction
+{
 	CampfireConn *campfire;
 	GString *http_request;
 	CampfireHttpResponse http_response;
@@ -55,7 +58,10 @@ typedef struct _CampfireSslTransaction {
 	gboolean my_message;
 } CampfireSslTransaction;
 
-void campfire_http_request(CampfireSslTransaction *xaction, gchar *uri, gchar *method, xmlnode *postxml);
-void campfire_queue_xaction(CampfireConn *campfire, CampfireSslTransaction *xaction, PurpleInputCondition cond);
+void campfire_http_request(CampfireSslTransaction * xaction, gchar * uri,
+			   gchar * method, xmlnode * postxml);
+void campfire_queue_xaction(CampfireConn * campfire,
+			    CampfireSslTransaction * xaction,
+			    PurpleInputCondition cond);
 
 #endif /* not HTTP_H */

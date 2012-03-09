@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# this usage of the 'indent' program should format code to the specificatons
+# listed here: http://developer.pidgin.im/wiki/CodingStandards 
+indent -bap -bbb -bbo -blf -bls -br -i8 -l80 -lp -npcs -nprs -psl -saf -sai \
+-saw -ts8 $*
+

@@ -1,14 +1,15 @@
 #ifndef CAMPFIRE_H
 #define CAMPFIRE_H
 
-//system includes
+/*system includes*/
 #include <glib/gi18n.h>
 
-//purple includes
+/*purple includes*/
 #include <plugin.h>
 #include <prpl.h>
 
-typedef struct _CampfireConn {
+typedef struct _CampfireConn
+{
 	PurpleAccount *account;
 	PurpleRoomlist *roomlist;
 	PurpleConnection *gc;
