@@ -1,3 +1,4 @@
+
 /*local includes*/
 #include "http.h"
 
@@ -128,8 +129,7 @@ ssl_input_consumed(GString * ssl_input)
 	gboolean consumed = FALSE;
 	if (ssl_input == NULL) {
 		consumed = TRUE;
-	}
-	else if (ssl_input->len == 0) {
+	} else if (ssl_input->len == 0) {
 		consumed = TRUE;
 	}
 	return consumed;
@@ -146,8 +146,7 @@ campfire_consume_http_header(CampfireHttpResponse * response,
 	if (header_end) {
 		header_end += strlen(blank_line);
 		header_len = header_end - ssl_input->str;
-	}
-	else {
+	} else {
 		header_len = ssl_input->len;
 	}
 	g_string_append_len(response->response, ssl_input->str, header_len);
@@ -250,18 +249,15 @@ campfire_http_response(PurpleSslConnection * gsc,
 			purple_debug_info("campfire",
 					  "TRY AGAIN (returning)\n");
 			return 0;
-		}
-		else {
+		} else {
 			purple_debug_info("campfire", "EAGAIN (continuing)\n");
 		}
-	}
-	else if (len == 0) {
+	} else if (len == 0) {
 		purple_debug_info("campfire", "SERVER CLOSED CONNECTION\n");
 		if (ssl_input->len == 0) {
 			return -1;
 		}
-	}
-	else {
+	} else {
 		purple_debug_info("campfire", "LOST CONNECTION\n");
 		purple_debug_info("campfire", "errno: %d\n", errsv);
 		return -1;
@@ -310,8 +306,7 @@ campfire_http_response(PurpleSslConnection * gsc,
 	 *********************************************************************/
 	if (response->rx_state == CAMPFIRE_HTTP_RX_DONE) {
 		status = response->status;
-	}
-	else {
+	} else {
 		status = 0;
 	}
 	return status;
@@ -329,8 +324,7 @@ campfire_ssl_handler(CampfireConn * campfire,
 
 	if (first) {
 		xaction = first->data;
-	}
-	else {
+	} else {
 		xaction = g_new0(CampfireSslTransaction, 1);
 		xaction->campfire = campfire;
 	}
@@ -349,11 +343,9 @@ campfire_ssl_handler(CampfireConn * campfire,
 			xaction->response_cb(xaction, gsc, cond);
 		}
 		cleanup = TRUE;
-	}
-	else if (status == 0) {	/*received partial content */
+	} else if (status == 0) {	/*received partial content */
 		cleanup = FALSE;
-	}
-	else {			/*status < 0 or some other http status we don't expect */
+	} else {		/*status < 0 or some other http status we don't expect */
 
 		close_ssl = TRUE;
 		cleanup = TRUE;
@@ -446,15 +438,13 @@ campfire_ssl_connect(CampfireConn * campfire,
 	purple_debug_info("campfire", "%s\n", __FUNCTION__);
 	if (!campfire) {
 		return;
-	}
-	else {
+	} else {
 		first = g_list_first(campfire->queue);
 	}
 
 	if (!first) {
 		return;
-	}
-	else {
+	} else {
 		xaction = first->data;
 	}
 
@@ -472,8 +462,7 @@ campfire_ssl_connect(CampfireConn * campfire,
 						   campfire);
 		purple_debug_info("campfire",
 				  "new ssl connection kicked off.\n");
-	}
-	else {
+	} else {
 		purple_debug_info("campfire", "previous ssl connection\n");
 		/* we want to write our http request to the ssl connection
 		 * WHENEVER this is called from the callback (meaning we've

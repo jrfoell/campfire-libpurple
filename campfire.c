@@ -1,3 +1,4 @@
+
 /*local includes*/
 #include "campfire.h"
 #include "message.h"
@@ -23,7 +24,7 @@ plugin_unload(PurplePlugin * plugin)
 static void
 campfire_login(PurpleAccount * account)
 {
-	/*don't really login (it's stateless), but init the CampfireConn*/
+	/*don't really login (it's stateless), but init the CampfireConn */
 	PurpleConnection *gc = purple_account_get_connection(account);
 	const char *username = purple_account_get_username(account);
 	CampfireConn *conn;
@@ -42,7 +43,7 @@ campfire_login(PurpleAccount * account)
 
 	gc->proto_data = conn;
 
-	/*register campfire commands*/
+	/*register campfire commands */
 	purple_cmd_register(CAMPFIRE_CMD_ME, "s", PURPLE_CMD_P_PRPL, f, prpl_id,
 			    campfire_parse_cmd,
 			    "me &lt;action to perform&gt;:  Perform an action.",
@@ -101,12 +102,12 @@ campfire_statuses(PurpleAccount * acct)
 	GList *types = NULL;
 	PurpleStatusType *status;
 
-	/*Online people have a status message and also a date when it was set*/
+	/*Online people have a status message and also a date when it was set */
 	status = purple_status_type_new_full(PURPLE_STATUS_AVAILABLE, NULL,
 					     _("Online"), TRUE, TRUE, FALSE);
 	types = g_list_append(types, status);
 
-	/*Offline people dont have messages*/
+	/*Offline people dont have messages */
 	status = purple_status_type_new_full(PURPLE_STATUS_OFFLINE, NULL,
 					     _("Offline"), TRUE, TRUE, FALSE);
 	types = g_list_append(types, status);
@@ -194,8 +195,8 @@ campfire_roomlist_get_list(PurpleConnection * gc)
 	campfire_room_query(campfire);
 
 	/*purple_roomlist_set_in_progress(campfire->roomlist, FALSE); */
-	/*purple_roomlist_unref(campfire->roomlist);*/
-	/*campfire->roomlist = NULL;*/
+	/*purple_roomlist_unref(campfire->roomlist); */
+	/*campfire->roomlist = NULL; */
 
 	return campfire->roomlist;
 }
@@ -237,7 +238,7 @@ campfire_chat_send(PurpleConnection * gc, int id, const char *message,
 
 static PurplePluginProtocolInfo campfire_protocol_info = {
 	/* options */
-	OPT_PROTO_CHAT_TOPIC | OPT_PROTO_NO_PASSWORD, /*| OPT_PROTO_SLASH_COMMANDS_NATIVE,*/
+	OPT_PROTO_CHAT_TOPIC | OPT_PROTO_NO_PASSWORD,	/*| OPT_PROTO_SLASH_COMMANDS_NATIVE, */
 	NULL,			/* user_splits */
 	NULL,			/* protocol_options */
 	{			/* icon_spec, a PurpleBuddyIconSpec */
@@ -311,7 +312,7 @@ static PurplePluginProtocolInfo campfire_protocol_info = {
 	NULL,			/* send_attention */
 	NULL,			/* attention_types */
 	sizeof(PurplePluginProtocolInfo),	/* struct_size */
-	NULL,			/*campfire_get_account_text_table*/ /* get_account_text_table */    
+	NULL,			/*campfire_get_account_text_table *//* get_account_text_table */
 };
 
 static PurplePluginInfo info = {
@@ -369,4 +370,3 @@ plugin_init(PurplePlugin * plugin)
 }
 
 PURPLE_INIT_PLUGIN(campfire, plugin_init, info);
-
