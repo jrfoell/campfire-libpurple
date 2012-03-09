@@ -411,10 +411,9 @@ campfire_ssl_handler(CampfireConn * campfire,
 /*
  * this prototype is needed because the next two functions call each other.
  */
-static void
-campfire_ssl_connect(CampfireConn * campfire,
-		     PurpleInputCondition cond,
-		     gboolean from_connection_callback);
+static void campfire_ssl_connect(CampfireConn * campfire,
+				 PurpleInputCondition cond,
+				 gboolean from_connection_callback);
 
 /* This is just an itermediate function:
  * It is called by lower level purple stuff when the ssl connection is
