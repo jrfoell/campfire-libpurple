@@ -153,10 +153,11 @@ campfire_new_xaction_copy(CampfireSslTransaction * original)
 	xaction->response_cb_data = xaction;
 	xaction->messages = original->messages;
 	xaction->first_check = original->first_check;
-	if (original->room_id) {
+	/* make a copy of the room id (if it's set) b/c it might
+	 * get free'd by someone if we just use the pointer
+	 */
+	if (original->room_id)
 		xaction->room_id = g_strdup(original->room_id);
-	}
-	/* this must be explicitly set */
 	xaction->my_message = original->my_message;
 
 	return xaction;
@@ -305,6 +306,68 @@ campfire_request_upload(CampfireSslTransaction * xaction, CampfireMessage * msg)
 }
 
 void
+campfire_print_message(CampfireConn *campfire, CampfireRoom * room, CampfireMessage * msg,
+		       gchar * user_name, gchar * upload_url)
+{
+	PurpleConversation *convo = purple_find_conversation_with_account
+			(PURPLE_CONV_TYPE_ANY, room->name,
+			 purple_connection_get_account(campfire->gc));
+	GString *message = NULL;
+	
+	if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_TEXT) == 0 ||
+	    g_strcmp0(msg->type, CAMPFIRE_MESSAGE_TWEET) == 0 ||
+	    g_strcmp0(msg->type, CAMPFIRE_MESSAGE_PASTE) == 0) {
+		purple_debug_info("campfire",
+				  "Writing chat message \"%s\" to %p from name %s\n",
+				  msg->message, convo,
+				  user_name);
+		purple_conversation_write(convo, user_name,
+					  msg->message,
+					  PURPLE_MESSAGE_RECV,
+					  msg->time);
+	} else {
+		message = g_string_new(user_name);
+		if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_ENTER) == 0) {
+			g_string_append(message,
+					" has entered the room.");
+		} else if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_LEAVE) == 0) {
+			g_string_append(message,
+					" has left the room.");
+		} else if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_KICK) == 0) {
+			g_string_append(message, " kicked.");
+		} else if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_GUESTALLOW) == 0) {
+			g_string_append(message,
+					" turned on guest access.");
+		} else if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_GUESTDENY) == 0) {
+			g_string_append(message,
+					" turned off guest access.");
+		} else if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_TOPIC) == 0) {
+			g_string_append(message,
+					" changed the room's topic to \"");
+			g_string_append(message, msg->message);
+			g_string_append(message, "\"");
+		} else if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_UPLOAD) == 0
+			   && upload_url) {
+			g_string_append(message, " uploaded ");
+			g_string_append(message, upload_url);
+		} else if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_SOUND) == 0) {
+			g_string_append(message,
+					" sounded off https://");
+			g_string_append(message,
+					campfire->hostname);
+			g_string_append(message, "/sounds/");
+			g_string_append(message, msg->message);
+			g_string_append(message, ".mp3");
+		}
+		purple_conversation_write(convo, "",
+					  message->str,
+					  PURPLE_MESSAGE_SYSTEM,
+					  msg->time);
+		g_string_free(message, TRUE);
+	}
+}
+
+void
 campfire_message_handler(CampfireSslTransaction * xaction,
 			 CampfireMessage * msg, gchar * upload_url)
 {
@@ -313,9 +376,7 @@ campfire_message_handler(CampfireSslTransaction * xaction,
 	gchar *user_name = g_hash_table_lookup(campfire->users, msg->user_id);
 	gchar *msg_id = NULL;
 	gboolean print = TRUE;
-	GString *message = NULL;
 	CampfireRoom *room = NULL;
-	PurpleConversation *convo = NULL;
 
 	purple_debug_info("campfire", "Looked up user_id: %s, got %s\n",
 			  msg->user_id, user_name);
@@ -328,13 +389,10 @@ campfire_message_handler(CampfireSslTransaction * xaction,
 				  xaction->room_id);
 		room = g_hash_table_lookup(campfire->rooms, xaction->room_id);
 		purple_debug_info("campfire", "got room %s\n", room->name);
-		convo = purple_find_conversation_with_account
-			(PURPLE_CONV_TYPE_ANY, room->name,
-			 purple_connection_get_account(xaction->campfire->gc));
 
 		purple_debug_info("campfire",
-				  "Writing message ID \"%s\" type \"%s\" to %p from name \"%s\"\n",
-				  msg->id, msg->type, convo, user_name);
+				  "Writing message ID \"%s\" type \"%s\" from name \"%s\"\n",
+				  msg->id, msg->type, user_name);
 
 		/*
 		 * some explanation: when you send a message, the resulting
@@ -347,8 +405,8 @@ campfire_message_handler(CampfireSslTransaction * xaction,
 		 * (xaction->my_message) and skip our own messages when we
 		 * do a period message print out.
 		 *
-		 * @TODO fix occasional duplicate message printouts from overlapping
-		 * recent message requests
+		 * @TODO fix occasional duplicate message printouts
+		 * from overlapping recent message requests
 		 */
 		if (!xaction->my_message) {
 			for (; room->my_message_ids != NULL;
@@ -377,74 +435,8 @@ campfire_message_handler(CampfireSslTransaction * xaction,
 				 * again once we've retrieved the upload info
 				 */
 				return;
-			} else if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_TEXT) ==
-				 0
-				 || g_strcmp0(msg->type,
-					      CAMPFIRE_MESSAGE_TWEET) == 0
-				 || g_strcmp0(msg->type,
-					      CAMPFIRE_MESSAGE_PASTE) == 0) {
-				purple_debug_info("campfire",
-						  "Writing chat message \"%s\" to %p from name %s\n",
-						  msg->message, convo,
-						  user_name);
-				purple_conversation_write(convo, user_name,
-							  msg->message,
-							  PURPLE_MESSAGE_RECV,
-							  msg->time);
 			} else {
-				message = g_string_new(user_name);
-				if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_ENTER)
-				    == 0) {
-					g_string_append(message,
-							" has entered the room.");
-				} else if (g_strcmp0
-					 (msg->type,
-					  CAMPFIRE_MESSAGE_LEAVE) == 0) {
-					g_string_append(message,
-							" has left the room.");
-				} else if (g_strcmp0
-					 (msg->type,
-					  CAMPFIRE_MESSAGE_KICK) == 0) {
-					g_string_append(message, " kicked.");
-				} else if (g_strcmp0
-					 (msg->type,
-					  CAMPFIRE_MESSAGE_GUESTALLOW) == 0) {
-					g_string_append(message,
-							" turned on guest access.");
-				} else if (g_strcmp0
-					 (msg->type,
-					  CAMPFIRE_MESSAGE_GUESTDENY) == 0) {
-					g_string_append(message,
-							" turned off guest access.");
-				} else if (g_strcmp0
-					 (msg->type,
-					  CAMPFIRE_MESSAGE_TOPIC) == 0) {
-					g_string_append(message,
-							" changed the room's topic to \"");
-					g_string_append(message, msg->message);
-					g_string_append(message, "\"");
-				}
-				else if (g_strcmp0
-					 (msg->type,
-					  CAMPFIRE_MESSAGE_UPLOAD) == 0
-					 && upload_url) {
-					g_string_append(message, " uploaded ");
-					g_string_append(message, upload_url);
-				} else if (g_strcmp0
-					 (msg->type,
-					  CAMPFIRE_MESSAGE_SOUND) == 0) {
-					g_string_append(message,
-							" sounded off https://");
-					g_string_append(message,
-							campfire->hostname);
-					g_string_append(message, "/sounds/");
-					g_string_append(message, msg->message);
-					g_string_append(message, ".mp3");
-				}
-				purple_conversation_write(convo, "",
-							  message->str,
-							  PURPLE_MESSAGE_SYSTEM,
-							  msg->time);
+				campfire_print_message(campfire, room, msg, user_name, upload_url);
 			}
 		}
 
