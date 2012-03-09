@@ -1,15 +1,15 @@
 #ifndef MESSAGE_H
 #define MESSAGE_H
 
-//local includes
+/* local includes */
 #include "http.h"
 #include "campfire.h"
 
-//system includes
+/* system includes */
 #include <glib/gi18n.h>
 #include <time.h>
 
-//purple includes
+/* purple includes */
 #include <xmlnode.h>
 #include <plugin.h>
 #include <cmds.h>
@@ -29,11 +29,12 @@
 
 #define CAMPFIRE_CMD_ME "me"
 #define CAMPFIRE_CMD_PLAY "play"
-//not really commands but we'll implement them to emulate web interface
+/* not really commands but we'll implement them to emulate web interface */
 #define CAMPFIRE_CMD_ROOM "room"
 #define CAMPFIRE_CMD_TOPIC "topic"
 
-typedef struct _CampfireMessage {
+typedef struct _CampfireMessage
+{
 	gchar *id;
 	gchar *type;
 	gchar *message;
@@ -41,19 +42,29 @@ typedef struct _CampfireMessage {
 	gchar *user_id;
 } CampfireMessage;
 
-typedef struct _CampfireRoom {
+typedef struct _CampfireRoom
+{
 	gchar *id;
 	gchar *name;
 	gchar *last_message_id;
 	GList *my_message_ids;
 } CampfireRoom;
 
-void campfire_message_send(CampfireConn *campfire, int id, const char *message, char *msg_type);
-void campfire_room_query(CampfireConn *campfire);
-void campfire_room_join(CampfireConn *campfire, gchar *room_id, gchar *room_name);
-void campfire_room_leave(CampfireConn *campfire, gint id);
-PurpleCmdRet campfire_parse_cmd(PurpleConversation *conv, const gchar *cmd,
-										 gchar **args, gchar **error, void *data);
+void
+campfire_message_send(CampfireConn *campfire, int id, const char *message, char *msg_type);
+
+void
+campfire_room_query(CampfireConn *campfire);
+
+void
+campfire_room_join(CampfireConn *campfire, gchar *room_id, gchar *room_name);
+
+void
+campfire_room_leave(CampfireConn *campfire, gint id);
+
+PurpleCmdRet
+campfire_parse_cmd(PurpleConversation *conv, const gchar *cmd,
+				   gchar **args, gchar **error, void *data);
 
 #endif /* not MESSAGE_H */
 
