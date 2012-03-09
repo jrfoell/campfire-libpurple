@@ -55,10 +55,5 @@ void campfire_room_leave(CampfireConn *campfire, gint id);
 PurpleCmdRet campfire_parse_cmd(PurpleConversation *conv, const gchar *cmd,
 										 gchar **args, gchar **error, void *data);
 
-//internal functions
-void campfire_fetch_first_messages(CampfireConn *campfire, gchar *room_id);
-void campfire_print_messages(CampfireSslTransaction *xaction, PurpleSslConnection *gsc, PurpleInputCondition cond);
-void campfire_message_callback(CampfireSslTransaction *xaction, PurpleSslConnection *gsc, PurpleInputCondition cond);
-
 #endif /* not MESSAGE_H */
 
