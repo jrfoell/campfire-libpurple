@@ -512,6 +512,12 @@ campfire_message_handler_callback(CampfireSslTransaction * xaction,
 			campfire_room_check(campfire);
 
 		/* maybe cleanup here? */
+		/* NOTE: any transaction that is 'queued' using
+		 * 'campfire_queue_xaction()' will be cleaned up in 
+		 * 'campfire_ssl_handler()'.  However, there is a transaction
+		 * allocated in 'campfire_message_send_callback()' that is used
+		 * but never 'queued', therefore it must be cleaned up here.
+		 */
 		if (xaction->my_message == TRUE) {
 			campfire_xaction_free(xaction);
 		}
