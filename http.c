@@ -219,7 +219,7 @@ campfire_http_response(PurpleSslConnection * gsc,
 		       PurpleInputCondition cond, xmlnode ** node)
 {
 	gchar buf[1024];
-	GString *ssl_input = g_string_new("");
+	GString *ssl_input;
 	gint len, errsv = 0;
 	gint status;
 	CampfireHttpResponse *response = &xaction->http_response;
@@ -232,6 +232,7 @@ campfire_http_response(PurpleSslConnection * gsc,
 	/**********************************************************************
 	 * read input from file descriptor
 	 *********************************************************************/
+	ssl_input = g_string_new("");
 	errno = 0;
 	while ((len = purple_ssl_read(gsc, buf, sizeof(buf))) > 0) {
 		purple_debug_info("campfire",
@@ -248,6 +249,7 @@ campfire_http_response(PurpleSslConnection * gsc,
 		if (ssl_input->len == 0) {
 			purple_debug_info("campfire",
 					  "TRY AGAIN (returning)\n");
+			g_string_free(ssl_input, TRUE);
 			return 0;
 		} else {
 			purple_debug_info("campfire", "EAGAIN (continuing)\n");
@@ -255,11 +257,13 @@ campfire_http_response(PurpleSslConnection * gsc,
 	} else if (len == 0) {
 		purple_debug_info("campfire", "SERVER CLOSED CONNECTION\n");
 		if (ssl_input->len == 0) {
+			g_string_free(ssl_input, TRUE);
 			return -1;
 		}
 	} else {
 		purple_debug_info("campfire", "LOST CONNECTION\n");
 		purple_debug_info("campfire", "errno: %d\n", errsv);
+		g_string_free(ssl_input, TRUE);
 		return -1;
 	}
 
@@ -308,8 +312,39 @@ campfire_http_response(PurpleSslConnection * gsc,
 		status = response->status;
 	} else {
 		status = 0;
-	}
+	}	
+	g_string_free(ssl_input, TRUE);
 	return status;
+}
+
+
+void
+campfire_xaction_free(CampfireSslTransaction *xaction)
+{
+	if (xaction) {
+		if (xaction->room_id) {
+			g_free(xaction->room_id);
+		}
+		if (xaction->http_request) {
+			g_string_free(xaction->http_request, TRUE);
+		}
+		if (xaction->http_response.response) {
+			g_string_free(xaction->http_response.response,
+				      TRUE);
+		}
+		if (xaction->http_response.header) {
+			g_string_free(xaction->http_response.header,
+				      TRUE);
+		}
+		if (xaction->http_response.content) {
+			g_string_free(xaction->http_response.content,
+				      TRUE);
+		}
+		if (xaction->xml_response) {
+			xmlnode_free(xaction->xml_response);
+		}
+		g_free(xaction);
+	}
 }
 
 void
@@ -361,30 +396,7 @@ campfire_ssl_handler(CampfireConn * campfire,
 	}
 
 	if (cleanup) {
-		if (xaction) {
-			if (xaction->room_id) {
-				g_free(xaction->room_id);
-			}
-			if (xaction->http_request) {
-				g_string_free(xaction->http_request, TRUE);
-			}
-			if (xaction->http_response.response) {
-				g_string_free(xaction->http_response.response,
-					      TRUE);
-			}
-			if (xaction->http_response.header) {
-				g_string_free(xaction->http_response.header,
-					      TRUE);
-			}
-			if (xaction->http_response.content) {
-				g_string_free(xaction->http_response.content,
-					      TRUE);
-			}
-			if (xaction->xml_response) {
-				xmlnode_free(xaction->xml_response);
-			}
-			g_free(xaction);
-		}
+		campfire_xaction_free(xaction);
 
 		if (first) {
 			purple_debug_info("campfire",

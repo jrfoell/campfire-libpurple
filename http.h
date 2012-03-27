@@ -63,5 +63,6 @@ void campfire_http_request(CampfireSslTransaction * xaction, gchar * uri,
 void campfire_queue_xaction(CampfireConn * campfire,
 			    CampfireSslTransaction * xaction,
 			    PurpleInputCondition cond);
+void campfire_xaction_free(CampfireSslTransaction *xaction);
 
 #endif /* not HTTP_H */

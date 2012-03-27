@@ -1,6 +1,7 @@
 
 /* local includes */
 #include "message.h"
+#include "http.h"
 
 /* purple includes */
 #include <debug.h>
@@ -475,8 +476,10 @@ campfire_message_handler_callback(CampfireSslTransaction * xaction,
 
 	/* handle possible response(s) (if used as a callback) */
 	if (xaction->xml_response) {
+		char *xml_debug = xmlnode_to_str(xaction->xml_response, NULL);
 		purple_debug_info("campfire", "got xml %s\n",
-				  xmlnode_to_str(xaction->xml_response, NULL));
+				  xml_debug);
+		g_free(xml_debug);
 		xmlurl = xmlnode_get_child(xaction->xml_response, "full-url");
 		if (xmlurl) {
 			/* it's an upload response */
@@ -509,6 +512,9 @@ campfire_message_handler_callback(CampfireSslTransaction * xaction,
 			campfire_room_check(campfire);
 
 		/* maybe cleanup here? */
+		if (xaction->my_message == TRUE) {
+			campfire_xaction_free(xaction);
+		}
 		purple_debug_info("campfire", "no more messages to process\n");
 	} else {
 		/* process the next message */
