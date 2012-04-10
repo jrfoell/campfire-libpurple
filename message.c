@@ -233,8 +233,11 @@ campfire_room_check(CampfireConn * campfire)
 				       PURPLE_INPUT_READ | PURPLE_INPUT_WRITE);
 		g_string_free(uri, TRUE);
 
-		/* then get recent messages */
-		if (room->last_message_id) {
+		/* then get recent messages
+		 * (only if there is nothing in the queue) */
+		if (    room->last_message_id
+		     && (g_list_first(campfire->queue) == NULL)) {
+
 			xaction2 = campfire_new_xaction_copy(xaction);
 			xaction2->response_cb =
 				(PurpleSslInputFunction)

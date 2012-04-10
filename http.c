@@ -322,9 +322,6 @@ void
 campfire_xaction_free(CampfireSslTransaction *xaction)
 {
 	if (xaction) {
-		if (xaction->room_id) {
-			g_free(xaction->room_id);
-		}
 		if (xaction->http_request) {
 			g_string_free(xaction->http_request, TRUE);
 		}
@@ -342,6 +339,9 @@ campfire_xaction_free(CampfireSslTransaction *xaction)
 		}
 		if (xaction->xml_response) {
 			xmlnode_free(xaction->xml_response);
+		}
+		if (xaction->room_id) {
+			g_free(xaction->room_id);
 		}
 		g_free(xaction);
 	}
