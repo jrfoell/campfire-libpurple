@@ -1,6 +1,7 @@
 
 /*local includes*/
 #include "http.h"
+#include "message.h"
 
 /*system includes*/
 #include <errno.h>
@@ -51,6 +52,7 @@ campfire_http_request(CampfireSslTransaction * xaction, gchar * uri,
 		g_string_append(xaction->http_request, "Content-Length: ");
 		len = g_strdup_printf("%lu", strlen(xmlstr));
 		g_string_append(xaction->http_request, len);
+		g_free(len);
 		g_string_append(xaction->http_request, "\r\n\r\n");
 		g_string_append(xaction->http_request, xmlstr);
 		g_string_append(xaction->http_request, "\r\n");
@@ -319,6 +321,27 @@ campfire_http_response(PurpleSslConnection * gsc,
 
 
 void
+campfire_message_free(gpointer data)
+{
+	CampfireMessage *msg = (CampfireMessage *)(data);
+	if (msg != NULL) {
+		if (msg->id != NULL) {
+			g_free(msg->id);
+		}
+		if (msg->type != NULL) {
+			g_free(msg->type);
+		}
+		if (msg->message != NULL) {
+			g_free(msg->message);
+		}
+		if (msg->user_id != NULL) {
+			g_free(msg->user_id);
+		}
+		g_free(msg);
+	}
+}
+
+void
 campfire_xaction_free(CampfireSslTransaction *xaction)
 {
 	if (xaction) {
@@ -343,6 +366,7 @@ campfire_xaction_free(CampfireSslTransaction *xaction)
 		if (xaction->room_id) {
 			g_free(xaction->room_id);
 		}
+		g_list_free_full(xaction->messages, &campfire_message_free);
 		g_free(xaction);
 	}
 }
@@ -513,6 +537,7 @@ campfire_queue_xaction(CampfireConn * campfire,
 	gboolean from_callback = FALSE;	/* this is not the ssl connection callback */
 	purple_debug_info("campfire", "%s input condition: %i\n", __FUNCTION__,
 			  cond);
+	xaction->queued = TRUE;
 	campfire->queue = g_list_append(campfire->queue, xaction);
 	purple_debug_info("campfire", "queue length %d\n",
 			  g_list_length(campfire->queue));
