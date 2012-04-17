@@ -399,6 +399,9 @@ campfire_ssl_handler(CampfireConn * campfire,
 			xmlnode_from_str(xaction->http_response.content->str,
 					 -1);
 		if (xaction && xaction->response_cb) {
+			purple_debug_info("campfire",
+			                  "calling response_cb (%p)\n",
+			                  xaction->response_cb);
 			xaction->response_cb(xaction, gsc, cond);
 		}
 		cleanup = TRUE;

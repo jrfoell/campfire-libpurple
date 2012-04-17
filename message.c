@@ -134,7 +134,6 @@ campfire_userlist_callback(CampfireSslTransaction * xaction,
 					purple_debug_info("campfire",
 							  "user %s is still here\n",
 							  buddy->name);
-					g_free(users->data);
 					found = TRUE;
 					break;
 				}
@@ -149,7 +148,7 @@ campfire_userlist_callback(CampfireSslTransaction * xaction,
 							     buddy->name, NULL);
 			}
 		}
-		g_list_free(users);
+		g_list_free_full(users, &g_free);
 	}
 }
 
@@ -157,10 +156,26 @@ CampfireSslTransaction *
 campfire_new_xaction_copy(CampfireSslTransaction * original)
 {
 	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);;
+	GList *msgs = NULL;
+	CampfireMessage *msg = NULL;
 	
 	xaction->campfire = original->campfire;
 	xaction->response_cb_data = xaction;
-	xaction->messages = original->messages;
+
+	/*xaction->messages = original->messages;*/ /* can't do this safely */
+	msgs = original->messages;
+	for (; msgs != NULL; msgs = msgs->next) {
+		CampfireMessage *orig_msg = msgs->data;
+		msg = g_new0(CampfireMessage, 1);
+
+		msg->id      = g_strdup(orig_msg->id);
+		msg->type    = g_strdup(orig_msg->type);
+		msg->message = g_strdup(orig_msg->message);
+		msg->time    = orig_msg->time;
+		msg->user_id = g_strdup(orig_msg->user_id);
+		xaction->messages = g_list_append(xaction->messages, msg);
+	}
+
 	xaction->first_check = original->first_check;
 	/* make a copy of the room id (if it's set) b/c it might
 	 * get free'd by someone if we just use the pointer
@@ -244,7 +259,7 @@ campfire_room_check(CampfireConn * campfire)
 		/* then get recent messages
 		 * (only if there is nothing in the queue) */
 		if (    room->last_message_id
-		     && (g_list_first(campfire->queue) == NULL)) {
+		     && (g_list_first(campfire->queue) == 1)) {
 
 			xaction2 = campfire_new_xaction_copy(xaction);
 			xaction2->response_cb =
@@ -386,12 +401,18 @@ campfire_message_handler(CampfireSslTransaction * xaction,
 			 CampfireMessage * msg, gchar * upload_url)
 {
 
-	CampfireConn *campfire = xaction->campfire;
-	gchar *user_name = g_hash_table_lookup(campfire->users, msg->user_id);
+	CampfireConn *campfire = NULL;
+	gchar *user_name = NULL;
 	gchar *msg_id = NULL;
 	gboolean print = TRUE;
 	CampfireRoom *room = NULL;
 
+
+	purple_debug_info("campfire", "xaction: (%p)\n", xaction);
+	campfire = xaction->campfire;
+	purple_debug_info("campfire", "msg: (%p)\n", msg);
+	purple_debug_info("campfire", "user_id: %s\n", msg->user_id);
+	user_name = g_hash_table_lookup(campfire->users, msg->user_id);
 	purple_debug_info("campfire", "Looked up user_id: %s, got %s\n",
 			  msg->user_id, user_name);
 
@@ -474,7 +495,7 @@ campfire_message_handler_callback(CampfireSslTransaction * xaction,
 				  PurpleInputCondition cond)
 {
 	CampfireConn *campfire = xaction->campfire;
-	GList *first = g_list_first(xaction->messages);
+	GList *first = NULL;
 	xmlnode *xmlusername = NULL, *xmluserid = NULL, *xmlurl = NULL;
 	gchar *user_id = NULL, *username = NULL, *upload_url = NULL;
 
@@ -519,7 +540,14 @@ campfire_message_handler_callback(CampfireSslTransaction * xaction,
 					     username);
 		}
 	}
-
+	
+	purple_debug_info("campfire",
+			  "xaction->messages: (%p)\n",
+			  xaction->messages);
+	first = g_list_first(xaction->messages);
+	purple_debug_info("campfire",
+			  "first message: (%p)\n",
+			  first);
 	/* Do this while there are messages remaining in the GList */
 	if (first) {
 		/* process the next message */
@@ -527,6 +555,8 @@ campfire_message_handler_callback(CampfireSslTransaction * xaction,
 
 	/* Do this after all messages have been processed */
 	} else {
+		purple_debug_info("campfire", "no more messages to process\n");
+
 		/* 'un-queued' cleanup:
 		 * NOTE: any transaction that is 'queued' using
 		 * 'campfire_queue_xaction()' will be cleaned up in 
@@ -544,10 +574,9 @@ campfire_message_handler_callback(CampfireSslTransaction * xaction,
 		/* print the user as "in the room" after the previous messages
 		 * have been printed (only if this is the first message check)
 		 */
-		if (xaction->first_check)
+		if (xaction->first_check) {
 			campfire_room_check(campfire);
-
-		purple_debug_info("campfire", "no more messages to process\n");
+		}
 	}
 }
 
