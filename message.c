@@ -72,6 +72,7 @@ campfire_userlist_callback(CampfireSslTransaction * xaction,
 			   PurpleSslConnection * gsc, PurpleInputCondition cond)
 {
 	PurpleConversation *convo = NULL;
+	PurpleConvChat *chat = NULL;
 	xmlnode *xmlroomname = NULL, *xmltopic = NULL,
 		*xmlusers =	NULL, *xmluser = NULL, *xmlname = NULL;
 	gchar *room_name = NULL, *topic = NULL, *name = NULL;
@@ -87,10 +88,11 @@ campfire_userlist_callback(CampfireSslTransaction * xaction,
 						      purple_connection_get_account
 						      (xaction->campfire->gc));
 	g_free(room_name);
+	chat = PURPLE_CONV_CHAT(convo);
 	xmltopic = xmlnode_get_child(xaction->xml_response, "topic");
 	topic = xmlnode_get_data(xmltopic); /* needs g_free */
 	purple_debug_info("campfire", "setting topic to %s\n", topic);
-	purple_conv_chat_set_topic(PURPLE_CONV_CHAT(convo), NULL, topic);
+	purple_conv_chat_set_topic(chat, NULL, topic);
 	g_free(topic);
 	xmlusers = xmlnode_get_child(xaction->xml_response, "users");
 	xmluser = xmlnode_get_child(xmlusers, "user");
@@ -100,10 +102,10 @@ campfire_userlist_callback(CampfireSslTransaction * xaction,
 		name = xmlnode_get_data(xmlname); /* needs g_free */
 		purple_debug_info("campfire", "user in room: %s\n", name);
 
-		if (!purple_conv_chat_find_user(PURPLE_CONV_CHAT(convo), name)) {
+		if (!purple_conv_chat_find_user(chat, name)) {
 			purple_debug_info("campfire",
 					  "adding user %s to room\n", name);
-			purple_conv_chat_add_user(PURPLE_CONV_CHAT(convo), name,
+			purple_conv_chat_add_user(chat, name,
 						  NULL, PURPLE_CBFLAGS_NONE,
 						  TRUE);
 		}
@@ -112,13 +114,13 @@ campfire_userlist_callback(CampfireSslTransaction * xaction,
 	}
 
 	purple_debug_info("campfire", "Getting all users in room\n");
-	chatusers = purple_conv_chat_get_users(PURPLE_CONV_CHAT(convo));
+	chatusers = purple_conv_chat_get_users(chat);
 	purple_debug_info("campfire", "got all users in room %p\n", chatusers);
 
 	if (users == NULL) {
 		/* probably shouldn't happen */
 		purple_debug_info("campfire", "removing all users from room\n");
-		purple_conv_chat_remove_users(PURPLE_CONV_CHAT(convo),
+		purple_conv_chat_remove_users(chat,
 					      chatusers, NULL);
 	} else if (chatusers != NULL) {
 		/* also probably shouldn't happen */
@@ -143,8 +145,7 @@ campfire_userlist_callback(CampfireSslTransaction * xaction,
 				purple_debug_info("campfire",
 						  "removing user %s that has left\n",
 						  buddy->name);
-				purple_conv_chat_remove_user(PURPLE_CONV_CHAT
-							     (convo),
+				purple_conv_chat_remove_user(chat,
 							     buddy->name, NULL);
 			}
 		}
@@ -261,7 +262,7 @@ campfire_room_check(CampfireConn * campfire)
 		/* then get recent messages
 		 * (only if there is nothing in the queue) */
 		if (    room->last_message_id
-		     && (g_list_length(campfire->queue) == 1)) {
+		     && (g_list_first(campfire->queue) == NULL)) {
 
 			xaction2 = campfire_new_xaction_copy(xaction);
 			xaction2->response_cb =

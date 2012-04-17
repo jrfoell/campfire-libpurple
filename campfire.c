@@ -33,6 +33,10 @@ campfire_login(PurpleAccount * account)
 	gchar *prpl_id = "prpl-analog_g-campfire";	/* analog_g = developer.pidgin.im Trac username */
 
 	conn = g_new0(CampfireConn, 1);
+	purple_debug_info("campfire", "num_xaction_malloc:%d: num_xaction_free:%d\n",
+		                  conn->num_xaction_malloc,
+		                  conn->num_xaction_free);
+	
 	conn->gc = gc;
 	conn->account = account;
 
