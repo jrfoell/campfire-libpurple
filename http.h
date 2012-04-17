@@ -56,7 +56,6 @@ typedef struct _CampfireSslTransaction
 	gchar *room_id;
 	GList *messages;
 	gboolean first_check;
-	gboolean my_message;
 } CampfireSslTransaction;
 
 void campfire_http_request(CampfireSslTransaction * xaction, gchar * uri,

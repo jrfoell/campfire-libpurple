@@ -47,7 +47,7 @@ typedef struct _CampfireRoom
 	gchar *id;
 	gchar *name;
 	gchar *last_message_id;
-	GList *my_message_ids;
+	GList *message_id_buffer;
 } CampfireRoom;
 
 void

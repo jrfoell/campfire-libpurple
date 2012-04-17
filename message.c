@@ -123,7 +123,6 @@ campfire_userlist_callback(CampfireSslTransaction * xaction,
 		purple_conv_chat_remove_users(chat,
 					      chatusers, NULL);
 	} else if (chatusers != NULL) {
-		/* also probably shouldn't happen */
 		purple_debug_info("campfire", "iterating chat users\n");
 		for (; chatusers != NULL; chatusers = chatusers->next) {
 			buddy = chatusers->data;
@@ -184,7 +183,6 @@ campfire_new_xaction_copy(CampfireSslTransaction * original)
 	 */
 	if (original->room_id)
 		xaction->room_id = g_strdup(original->room_id);
-	xaction->my_message = original->my_message;
 
 	return xaction;
 }
@@ -216,7 +214,7 @@ campfire_message_callback(CampfireSslTransaction * xaction,
 	xaction2->response_cb_data = xaction2;
 	xaction2->messages = msgs;
 
-	campfire_message_handler_callback(xaction2, xaction->campfire->gsc,
+	campfire_message_handler_callback(xaction2, xaction2->campfire->gsc,
 					  PURPLE_INPUT_READ);
 }
 
@@ -433,35 +431,22 @@ campfire_message_handler(CampfireSslTransaction * xaction,
 				  msg->id, msg->type, user_name);
 
 		/*
-		 * some explanation: when you send a message, the resulting
-		 * message gets sent back as a confirmation. The
-		 * confirmation message winds up here to be printed out.
-		 * 
-		 * In order to not print out your own messages twice from
-		 * the recent.xml?since_message_id=X request, we must hint
-		 * this function when we're being called from our own message send
-		 * (xaction->my_message) and skip our own messages when we
-		 * do a period message print out.
-		 *
-		 * @TODO fix occasional duplicate message printouts
-		 * from overlapping recent message requests
-		 */
-		if (!xaction->my_message) {
-			for (; room->my_message_ids != NULL;
-			     room->my_message_ids =
-			     room->my_message_ids->next) {
-				msg_id = room->my_message_ids->data;
-				if (g_strcmp0(msg_id, msg->id) == 0) {
-					purple_debug_info("campfire",
-							  "Won't write message \"%s\" it was mine\n",
-							  msg_id);
-					print = FALSE;
-					room->my_message_ids =
-						g_list_remove(room->
-							      my_message_ids,
-							      msg_id);
-					break;
-				}
+		 * In order to not print out your own messages twice, we'll
+		 * keep a buffer of printed messages and check against that.
+		 */				
+		purple_debug_info("campfire",
+						  "Checking to see if message ID \"%s\" has been written\n",
+						  msg->id);
+		
+		for (; room->message_id_buffer != NULL;
+			 room->message_id_buffer = room->message_id_buffer->next) {
+			msg_id = room->message_id_buffer->data;
+			if (g_strcmp0(msg_id, msg->id) == 0) {
+				purple_debug_info("campfire",
+								  "Won't write message \"%s\" already written\n",
+								  msg_id);
+				print = FALSE;
+				break;
 			}
 		}
 
@@ -476,11 +461,20 @@ campfire_message_handler(CampfireSslTransaction * xaction,
 			} else {
 				campfire_print_message(campfire, room, msg, user_name, upload_url);
 			}
+			/* remember the last message we've written */
+			room->last_message_id = msg->id;
+			purple_debug_info("campfire", "Adding message ID to buffer\n");
+			room->message_id_buffer = g_list_append(room->message_id_buffer, msg);
 		}
 
-		/* remember the last message we've written */
-		if (!xaction->my_message)
-			room->last_message_id = msg->id;
+		purple_debug_info("campfire", "Buffer length %i\n", g_list_length(room->message_id_buffer));
+		/* only keep 10 messages in the buffer */
+		while (g_list_length(room->message_id_buffer) > 10) {
+			purple_debug_info("campfire", "Removing message ID from buffer\n");
+			room->message_id_buffer = g_list_remove(
+				room->message_id_buffer,
+				g_list_first(room->message_id_buffer));
+		}
 
 		campfire_message_free(msg);
 		xaction->messages = g_list_remove(xaction->messages, msg);
@@ -502,10 +496,9 @@ campfire_message_handler_callback(CampfireSslTransaction * xaction,
 	xmlnode *xmlusername = NULL, *xmluserid = NULL, *xmlurl = NULL;
 	gchar *user_id = NULL, *username = NULL, *upload_url = NULL;
 
-	purple_debug_info("campfire", "%s first_check:%s my_message:%s\n",
+	purple_debug_info("campfire", "%s first_check:%s\n",
 			  __FUNCTION__,
-			  xaction->first_check ? "true" : "false",
-			  xaction->my_message ? "true" : "false");
+			  xaction->first_check ? "true" : "false");
 
 	/* initialize user list */
 	if (!campfire->users) {
@@ -560,6 +553,12 @@ campfire_message_handler_callback(CampfireSslTransaction * xaction,
 	} else {
 		purple_debug_info("campfire", "no more messages to process\n");
 
+		/* print the user as "in the room" after the previous messages
+		 * have been printed (only if this is the first message check)
+		 */
+		if (xaction->first_check) {
+			campfire_room_check(campfire);
+		}
 		/* 'un-queued' cleanup:
 		 * NOTE: any transaction that is 'queued' using
 		 * 'campfire_queue_xaction()' will be cleaned up in 
@@ -574,12 +573,6 @@ campfire_message_handler_callback(CampfireSslTransaction * xaction,
 		if (xaction->queued == FALSE) {
 			campfire_xaction_free(xaction);
 		}
-		/* print the user as "in the room" after the previous messages
-		 * have been printed (only if this is the first message check)
-		 */
-		if (xaction->first_check) {
-			campfire_room_check(campfire);
-		}
 	}
 }
 
@@ -588,8 +581,6 @@ campfire_message_send_callback(CampfireSslTransaction * xaction,
 			       PurpleSslConnection * gsc,
 			       PurpleInputCondition cond)
 {
-	CampfireRoom *room =
-		g_hash_table_lookup(xaction->campfire->rooms, xaction->room_id);
 	CampfireMessage *msg = campfire_get_message(xaction->xml_response);
 	GList *msgs = NULL;
 	CampfireSslTransaction *xaction2 = NULL;
@@ -601,18 +592,10 @@ campfire_message_send_callback(CampfireSslTransaction * xaction,
 
 	msgs = g_list_append(msgs, msg);
 
-	/* save this message id so we don't set it as last_message_id (or re-print it) */
-	if (!room->my_message_ids) {
-		room->my_message_ids =
-			g_list_append(room->my_message_ids, msg->id);
-	}
-
 	xaction2 = campfire_new_xaction_copy(xaction);
 	xaction2->response_cb =
 		(PurpleSslInputFunction) campfire_message_handler_callback;
 	xaction2->messages = msgs;
-	/* let campfire_message_handler_callback know where we're coming from */
-	xaction2->my_message = TRUE;
 
 	campfire_message_handler_callback(xaction2, xaction->campfire->gsc,
 					  PURPLE_INPUT_READ);
