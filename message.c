@@ -161,6 +161,8 @@ campfire_new_xaction_copy(CampfireSslTransaction * original)
 	CampfireMessage *msg = NULL;
 	
 	original->campfire->num_xaction_malloc++; /* valgrind investigation */
+	purple_debug_info("campfire", "%s: xaction: %p, campfire->num_xaction_malloc:%d\n",
+	                  __FUNCTION__, xaction, original->campfire->num_xaction_malloc);
 	xaction->campfire = original->campfire;
 	xaction->response_cb_data = xaction;
 
@@ -242,6 +244,8 @@ campfire_room_check(CampfireConn * campfire)
 		/* first check the room users */
 		xaction = g_new0(CampfireSslTransaction, 1);
 		campfire->num_xaction_malloc++; /* valgrind investigation */
+		purple_debug_info("campfire", "%s: xaction: %p, campfire->num_xaction_malloc:%d\n",
+		                  __FUNCTION__, xaction, campfire->num_xaction_malloc);
 		xaction->campfire = campfire;
 		xaction->response_cb =
 			(PurpleSslInputFunction) campfire_userlist_callback;
@@ -422,7 +426,6 @@ campfire_message_handler(CampfireSslTransaction * xaction,
 	if (!user_name) {
 		campfire_request_user(xaction, msg);
 	} else {
-		//print
 		purple_debug_info("campfire", "looking for room %s\n",
 				  xaction->room_id);
 		room = g_hash_table_lookup(campfire->rooms, xaction->room_id);
@@ -482,14 +485,15 @@ campfire_message_handler(CampfireSslTransaction * xaction,
 		if (!xaction->my_message)
 			room->last_message_id = msg->id;
 
-		campfire_message_free(msg);
-		xaction->messages = g_list_remove(xaction->messages, msg);
-		xaction->xml_response = NULL;
-		/* recurse */
-		campfire_message_handler_callback(xaction, campfire->gsc,
-						  PURPLE_INPUT_READ |
-						  PURPLE_INPUT_WRITE);
 	}
+
+	campfire_message_free(msg);
+	xaction->messages = g_list_remove(xaction->messages, msg);
+	xaction->xml_response = NULL;
+	/* recurse */
+	campfire_message_handler_callback(xaction, campfire->gsc,
+					  PURPLE_INPUT_READ |
+					  PURPLE_INPUT_WRITE);
 }
 
 void
@@ -559,6 +563,8 @@ campfire_message_handler_callback(CampfireSslTransaction * xaction,
 	/* Do this after all messages have been processed */
 	} else {
 		purple_debug_info("campfire", "no more messages to process\n");
+		purple_debug_info("campfire", "xaction: %p, xaction->queued: %d\n",
+		                  xaction, xaction->queued);
 
 		/* 'un-queued' cleanup:
 		 * NOTE: any transaction that is 'queued' using
@@ -642,6 +648,8 @@ campfire_message_send(CampfireConn * campfire, int id, const char *message,
 
 	xaction = g_new0(CampfireSslTransaction, 1);
 	campfire->num_xaction_malloc++; /* valgrind investigation */
+	purple_debug_info("campfire", "%s: xaction: %p, campfire->num_xaction_malloc:%d\n",
+	                  __FUNCTION__, xaction, campfire->num_xaction_malloc);
 	xaction->campfire = campfire;
 	xaction->response_cb =
 		(PurpleSslInputFunction) campfire_message_send_callback;
@@ -702,6 +710,8 @@ campfire_room_query(CampfireConn * campfire)
 	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);
 
 	campfire->num_xaction_malloc++; /* valgrind investigation */
+	purple_debug_info("campfire", "%s: xaction: %p, campfire->num_xaction_malloc:%d\n",
+	                  __FUNCTION__, xaction, campfire->num_xaction_malloc);
 	xaction->campfire = campfire;
 	xaction->response_cb =
 		(PurpleSslInputFunction) (campfire_room_query_callback);
@@ -746,6 +756,8 @@ campfire_room_update(CampfireConn * campfire, gint id, gchar * topic,
 
 	xaction = g_new0(CampfireSslTransaction, 1);
 	campfire->num_xaction_malloc++; /* valgrind investigation */
+	purple_debug_info("campfire", "%s: xaction: %p, campfire->num_xaction_malloc:%d\n",
+	                  __FUNCTION__, xaction, campfire->num_xaction_malloc);
 	xaction->campfire = campfire;
 	xaction->response_cb =
 		(PurpleSslInputFunction) campfire_room_update_callback;
@@ -811,6 +823,8 @@ campfire_fetch_first_messages(CampfireConn * campfire, gchar * room_id)
 	GString *uri = NULL;
 
 	campfire->num_xaction_malloc++; /* valgrind investigation */
+	purple_debug_info("campfire", "%s: xaction: %p, campfire->num_xaction_malloc:%d\n",
+	                  __FUNCTION__, xaction, campfire->num_xaction_malloc);
 	purple_debug_info("campfire", "%s\n", __FUNCTION__);
 
 	uri = g_string_new("/room/");
@@ -857,6 +871,8 @@ campfire_room_join(CampfireConn * campfire, gchar * id, gchar * name)
 	CampfireRoom *room = NULL;
 
 	campfire->num_xaction_malloc++; /* valgrind investigation */
+	purple_debug_info("campfire", "%s: xaction: %p, campfire->num_xaction_malloc:%d\n",
+	                  __FUNCTION__, xaction, campfire->num_xaction_malloc);
 	g_string_append(uri, id);
 	g_string_append(uri, "/join.xml");
 
@@ -901,10 +917,13 @@ campfire_room_leave_callback(CampfireSslTransaction * xaction,
 void
 campfire_room_leave(CampfireConn * campfire, gint id)
 {
+	
 	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);
 	GString *uri = NULL;
 
 	campfire->num_xaction_malloc++; /* valgrind investigation */
+	purple_debug_info("campfire", "%s: xaction: %p, campfire->num_xaction_malloc:%d\n",
+	                  __FUNCTION__, xaction, campfire->num_xaction_malloc);
 	xaction->campfire = campfire;
 	xaction->response_cb =
 		(PurpleSslInputFunction) campfire_room_leave_callback;
