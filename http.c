@@ -367,8 +367,13 @@ campfire_xaction_free(CampfireSslTransaction *xaction)
 			g_free(xaction->room_id);
 		}
 		g_list_free_full(xaction->messages, &campfire_message_free);
+		xaction->campfire->num_xaction_free++; /* valgrind investigation */
+		purple_debug_info("campfire", "num_xaction_malloc:%d: num_xaction_free:%d\n",
+		                  xaction->campfire->num_xaction_malloc,
+		                  xaction->campfire->num_xaction_free);
 		g_free(xaction);
 	}
+
 }
 
 void
@@ -385,6 +390,7 @@ campfire_ssl_handler(CampfireConn * campfire,
 		xaction = first->data;
 	} else {
 		xaction = g_new0(CampfireSslTransaction, 1);
+		campfire->num_xaction_malloc++; /* valgrind investigation */
 		xaction->campfire = campfire;
 	}
 

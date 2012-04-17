@@ -19,6 +19,8 @@ typedef struct _CampfireConn
 	GHashTable *users;
 	guint message_timer;
 	GList *queue;
+	guint num_xaction_malloc; /* valgrind investigation */
+	guint num_xaction_free;   /* valgrind investigation */
 } CampfireConn;
 
 #endif /* not CAMPFIRE_H */

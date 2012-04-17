@@ -159,6 +159,7 @@ campfire_new_xaction_copy(CampfireSslTransaction * original)
 	GList *msgs = NULL;
 	CampfireMessage *msg = NULL;
 	
+	original->campfire->num_xaction_malloc++; /* valgrind investigation */
 	xaction->campfire = original->campfire;
 	xaction->response_cb_data = xaction;
 
@@ -239,6 +240,7 @@ campfire_room_check(CampfireConn * campfire)
 
 		/* first check the room users */
 		xaction = g_new0(CampfireSslTransaction, 1);
+		campfire->num_xaction_malloc++; /* valgrind investigation */
 		xaction->campfire = campfire;
 		xaction->response_cb =
 			(PurpleSslInputFunction) campfire_userlist_callback;
@@ -259,7 +261,7 @@ campfire_room_check(CampfireConn * campfire)
 		/* then get recent messages
 		 * (only if there is nothing in the queue) */
 		if (    room->last_message_id
-		     && (g_list_first(campfire->queue) == 1)) {
+		     && (g_list_length(campfire->queue) == 1)) {
 
 			xaction2 = campfire_new_xaction_copy(xaction);
 			xaction2->response_cb =
@@ -638,6 +640,7 @@ campfire_message_send(CampfireConn * campfire, int id, const char *message,
 	g_string_append(uri, "/speak.xml");
 
 	xaction = g_new0(CampfireSslTransaction, 1);
+	campfire->num_xaction_malloc++; /* valgrind investigation */
 	xaction->campfire = campfire;
 	xaction->response_cb =
 		(PurpleSslInputFunction) campfire_message_send_callback;
@@ -697,6 +700,7 @@ campfire_room_query(CampfireConn * campfire)
 {
 	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);
 
+	campfire->num_xaction_malloc++; /* valgrind investigation */
 	xaction->campfire = campfire;
 	xaction->response_cb =
 		(PurpleSslInputFunction) (campfire_room_query_callback);
@@ -740,6 +744,7 @@ campfire_room_update(CampfireConn * campfire, gint id, gchar * topic,
 	g_string_append(uri, ".xml");
 
 	xaction = g_new0(CampfireSslTransaction, 1);
+	campfire->num_xaction_malloc++; /* valgrind investigation */
 	xaction->campfire = campfire;
 	xaction->response_cb =
 		(PurpleSslInputFunction) campfire_room_update_callback;
@@ -804,6 +809,7 @@ campfire_fetch_first_messages(CampfireConn * campfire, gchar * room_id)
 	gchar *limit_str;
 	GString *uri = NULL;
 
+	campfire->num_xaction_malloc++; /* valgrind investigation */
 	purple_debug_info("campfire", "%s\n", __FUNCTION__);
 
 	uri = g_string_new("/room/");
@@ -849,6 +855,7 @@ campfire_room_join(CampfireConn * campfire, gchar * id, gchar * name)
 	GString *uri = g_string_new("/room/");
 	CampfireRoom *room = NULL;
 
+	campfire->num_xaction_malloc++; /* valgrind investigation */
 	g_string_append(uri, id);
 	g_string_append(uri, "/join.xml");
 
@@ -896,6 +903,7 @@ campfire_room_leave(CampfireConn * campfire, gint id)
 	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);
 	GString *uri = NULL;
 
+	campfire->num_xaction_malloc++; /* valgrind investigation */
 	xaction->campfire = campfire;
 	xaction->response_cb =
 		(PurpleSslInputFunction) campfire_room_leave_callback;
