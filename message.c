@@ -41,7 +41,9 @@ campfire_get_message(xmlnode * xmlmessage)
 	xmlid = xmlnode_get_child(xmlmessage, "id");
 	msg_id = xmlnode_get_data(xmlid); /* needs g_free */
 
-	if (g_strcmp0(msgtype, CAMPFIRE_MESSAGE_TIME) == 0) {
+	if (g_strcmp0(msgtype, CAMPFIRE_MESSAGE_TIME) == 0 ||
+		g_strcmp0(msgtype, CAMPFIRE_MESSAGE_ENTER) == 0 ||
+		g_strcmp0(msgtype, CAMPFIRE_MESSAGE_LEAVE) == 0) {
 		purple_debug_info("campfire", "Skipping message of type: %s\n",
 				  msgtype);
 		xmlmessage = xmlnode_get_next_twin(xmlmessage);
@@ -263,8 +265,7 @@ campfire_room_check(CampfireConn * campfire)
 
 		/* then get recent messages
 		 * (only if there is nothing in the queue) */
-		if (    room->last_message_id
-		     && (g_list_first(campfire->queue) == NULL)) {
+		if (room->last_message_id) {
 
 			xaction2 = campfire_new_xaction_copy(xaction);
 			xaction2->response_cb =
@@ -361,13 +362,15 @@ campfire_print_message(CampfireConn *campfire, CampfireRoom * room, CampfireMess
 					  msg->time);
 	} else {
 		message = g_string_new(user_name);
+		/*
 		if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_ENTER) == 0) {
 			g_string_append(message,
 					" has entered the room.");
 		} else if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_LEAVE) == 0) {
 			g_string_append(message,
 					" has left the room.");
-		} else if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_KICK) == 0) {
+		} else */
+		if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_KICK) == 0) {
 			g_string_append(message, " kicked.");
 		} else if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_GUESTALLOW) == 0) {
 			g_string_append(message,
