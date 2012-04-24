@@ -411,6 +411,7 @@ campfire_message_handler(CampfireSslTransaction * xaction,
 	gchar *msg_id = NULL;
 	gboolean print = TRUE;
 	CampfireRoom *room = NULL;
+	GList *tmp_buf = NULL;
 
 
 	purple_debug_info("campfire", "xaction: (%p)\n", xaction);
@@ -427,7 +428,7 @@ campfire_message_handler(CampfireSslTransaction * xaction,
 		purple_debug_info("campfire", "looking for room %s\n",
 				  xaction->room_id);
 		room = g_hash_table_lookup(campfire->rooms, xaction->room_id);
-		purple_debug_info("campfire", "got room %s\n", room->name);
+		purple_debug_info("campfire", "got room %p ID: %s name: %s last message id: %s\n", room, room->id, room->name, room->last_message_id);
 
 		purple_debug_info("campfire",
 				  "Writing message ID \"%s\" type \"%s\" from name \"%s\"\n",
@@ -440,10 +441,16 @@ campfire_message_handler(CampfireSslTransaction * xaction,
 		purple_debug_info("campfire",
 						  "Checking to see if message ID \"%s\" has been written\n",
 						  msg->id);
-		
-		for (; room->message_id_buffer != NULL;
-			 room->message_id_buffer = room->message_id_buffer->next) {
-			msg_id = room->message_id_buffer->data;
+
+		tmp_buf = g_list_first(room->message_id_buffer);
+
+		for (; tmp_buf != NULL;
+			 tmp_buf = tmp_buf->next) {
+			msg_id = tmp_buf->data;
+			purple_debug_info("campfire",
+							  "Looking at message ID %s from list\n",
+							  msg_id);
+			
 			if (g_strcmp0(msg_id, msg->id) == 0) {
 				purple_debug_info("campfire",
 								  "Won't write message \"%s\" already written\n",
@@ -465,29 +472,29 @@ campfire_message_handler(CampfireSslTransaction * xaction,
 				campfire_print_message(campfire, room, msg, user_name, upload_url);
 			}
 			/* remember the last message we've written */
-			room->last_message_id = msg->id;
-			purple_debug_info("campfire", "Adding message ID to buffer\n");
-			room->message_id_buffer = g_list_append(room->message_id_buffer, msg);
+			room->last_message_id = g_strdup(msg->id);
+			purple_debug_info("campfire", "Adding message ID %s to buffer\n", msg->id);
+			room->message_id_buffer = g_list_append(room->message_id_buffer, g_strdup(msg->id));
 		}
 
-		purple_debug_info("campfire", "Buffer length %i\n", g_list_length(room->message_id_buffer));
 		/* only keep 10 messages in the buffer */
 		while (g_list_length(room->message_id_buffer) > 10) {
 			purple_debug_info("campfire", "Removing message ID from buffer\n");
-			room->message_id_buffer = g_list_remove(
+			room->message_id_buffer = g_list_delete_link(
 				room->message_id_buffer,
 				g_list_first(room->message_id_buffer));
+			
 		}
 
+		campfire_message_free(msg);
+		xaction->messages = g_list_remove(xaction->messages, msg);
+		xaction->xml_response = NULL;
+		/* recurse */
+		campfire_message_handler_callback(xaction, campfire->gsc,
+										  PURPLE_INPUT_READ |
+										  PURPLE_INPUT_WRITE);
 	}
 
-	campfire_message_free(msg);
-	xaction->messages = g_list_remove(xaction->messages, msg);
-	xaction->xml_response = NULL;
-	/* recurse */
-	campfire_message_handler_callback(xaction, campfire->gsc,
-					  PURPLE_INPUT_READ |
-					  PURPLE_INPUT_WRITE);
 }
 
 void
@@ -866,6 +873,7 @@ campfire_room_join(CampfireConn * campfire, gchar * id, gchar * name)
 	room = g_new0(CampfireRoom, 1);
 	room->name = g_strdup(name);
 	room->id = g_strdup(id);
+	room->last_message_id = NULL;
 	g_hash_table_replace(campfire->rooms, id, room);
 
 	xaction->campfire = campfire;
