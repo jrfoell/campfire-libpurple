@@ -78,7 +78,7 @@ campfire_userlist_callback(CampfireSslTransaction * xaction,
 	xmlnode *xmlroomname = NULL, *xmltopic = NULL,
 		*xmlusers =	NULL, *xmluser = NULL, *xmlname = NULL;
 	gchar *room_name = NULL, *topic = NULL, *name = NULL;
-	GList *users = NULL, *chatusers = NULL;
+	GList *users = NULL, *chatusers = NULL, *users_iter = NULL;
 	PurpleConvChatBuddy *buddy = NULL;
 	gboolean found;
 
@@ -132,8 +132,9 @@ campfire_userlist_callback(CampfireSslTransaction * xaction,
 			purple_debug_info("campfire",
 					  "checking to see if user %s has left\n",
 					  buddy->name);
-			for (; users; users = users->next) {
-				if (g_strcmp0(users->data, buddy->name) == 0) {
+			users_iter = users;
+			for (; users_iter; users_iter = users_iter->next) {
+				if (g_strcmp0(users_iter->data, buddy->name) == 0) {
 					purple_debug_info("campfire",
 							  "user %s is still here\n",
 							  buddy->name);
@@ -141,6 +142,8 @@ campfire_userlist_callback(CampfireSslTransaction * xaction,
 					break;
 				}
 			}
+
+			
 
 			if (!found) {
 				purple_debug_info("campfire",
