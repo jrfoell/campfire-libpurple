@@ -131,9 +131,8 @@ campfire_userlist_callback(CampfireSslTransaction * xaction,
 			found = FALSE;
 			purple_debug_info("campfire",
 					  "checking to see if user %s has left\n",
-					  buddy->name);
-			users_iter = users;
-			for (; users_iter; users_iter = users_iter->next) {
+					  buddy->name);			
+			for (users_iter = users; users_iter; users_iter = users_iter->next) {
 				if (g_strcmp0(users_iter->data, buddy->name) == 0) {
 					purple_debug_info("campfire",
 							  "user %s is still here\n",
@@ -149,8 +148,7 @@ campfire_userlist_callback(CampfireSslTransaction * xaction,
 				purple_debug_info("campfire",
 						  "removing user %s that has left\n",
 						  buddy->name);
-				purple_conv_chat_remove_user(chat,
-							     buddy->name, NULL);
+				purple_conv_chat_remove_user(chat, g_strdup(buddy->name), NULL);
 			}
 		}
 		g_list_free_full(users, &g_free);
