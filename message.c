@@ -148,6 +148,7 @@ campfire_userlist_callback(CampfireSslTransaction * xaction,
 				purple_debug_info("campfire",
 						  "removing user %s that has left\n",
 						  buddy->name);
+				/* @TODO: MEMORY LEAK caused by g_strdup */
 				purple_conv_chat_remove_user(chat, g_strdup(buddy->name), NULL);
 			}
 		}
@@ -490,20 +491,14 @@ campfire_message_handler(CampfireSslTransaction * xaction,
 			
 		}
 
-		campfire_message_free(msg);
-		xaction->messages = g_list_remove(xaction->messages, msg);
-		xaction->xml_response = NULL;
-		/* recurse
-		 *
-		 * @TODO MEMORY LEAK HERE
-		 * 
-		 * Actually has to do with campfire_request_user in the first
-		 * section of if() not getting free'd
-		 */
-		campfire_message_handler_callback(xaction, campfire->gsc,
-										  PURPLE_INPUT_READ |
-										  PURPLE_INPUT_WRITE);
 	}
+	campfire_message_free(msg);
+	xaction->messages = g_list_remove(xaction->messages, msg);
+	xaction->xml_response = NULL;
+	/* recurse */
+	campfire_message_handler_callback(xaction, campfire->gsc,
+	                                  PURPLE_INPUT_READ |
+	                                  PURPLE_INPUT_WRITE);
 
 }
 
