@@ -273,6 +273,8 @@ campfire_http_response(PurpleSslConnection * gsc,
 		response->response = g_string_new("");
 	}
 
+	purple_debug_info("campfire", "ssl_input:\n%s", ssl_input->str);
+
 	/**********************************************************************
 	 * process input with a simple state machine
 	 *********************************************************************/
