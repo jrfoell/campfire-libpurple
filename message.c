@@ -493,7 +493,13 @@ campfire_message_handler(CampfireSslTransaction * xaction,
 		campfire_message_free(msg);
 		xaction->messages = g_list_remove(xaction->messages, msg);
 		xaction->xml_response = NULL;
-		/* recurse */
+		/* recurse
+		 *
+		 * @TODO MEMORY LEAK HERE
+		 * 
+		 * Actually has to do with campfire_request_user in the first
+		 * section of if() not getting free'd
+		 */
 		campfire_message_handler_callback(xaction, campfire->gsc,
 										  PURPLE_INPUT_READ |
 										  PURPLE_INPUT_WRITE);
