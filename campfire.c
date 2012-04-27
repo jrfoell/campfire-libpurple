@@ -28,7 +28,7 @@ campfire_login(PurpleAccount * account)
 	PurpleConnection *gc = purple_account_get_connection(account);
 	const char *username = purple_account_get_username(account);
 	CampfireConn *conn;
-	char **userparts;
+	char *pos;
 	PurpleCmdFlag f = PURPLE_CMD_FLAG_CHAT | PURPLE_CMD_FLAG_PRPL_ONLY;
 	gchar *prpl_id = "prpl-analog_g-campfire";	/* analog_g = developer.pidgin.im Trac username */
 
@@ -39,10 +39,12 @@ campfire_login(PurpleAccount * account)
 	conn->gc = gc;
 	conn->account = account;
 
-	userparts = g_strsplit(username, "@", 2);
-	purple_connection_set_display_name(gc, userparts[0]);
-	conn->hostname = g_strdup(userparts[1]);
-	g_strfreev(userparts);
+        /* Find the last '@'; usernames can have '@' in them. */
+	pos = strrchr(username, '@');
+	conn->hostname = g_strdup(pos+1);
+	pos[0] = 0;
+	purple_connection_set_display_name(gc, username);
+	pos[0] = '@';
 
 	purple_debug_info("campfire", "username: %s\n", username);
 	purple_debug_info("campfire", "display_name: %s\n", userparts[0]);
