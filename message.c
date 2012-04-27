@@ -429,6 +429,12 @@ campfire_message_handler(CampfireSslTransaction * xaction,
 
 	if (!user_name) {
 		campfire_request_user(xaction, msg);
+		/* justin, this was your idea.  I see 
+		 * the need for it now. 
+		 */
+		if (xaction->queued == FALSE) {
+			campfire_xaction_free(xaction);
+		}
 	} else {
 		purple_debug_info("campfire", "looking for room %s\n",
 				  xaction->room_id);
@@ -490,15 +496,15 @@ campfire_message_handler(CampfireSslTransaction * xaction,
 				g_list_first(room->message_id_buffer));
 			
 		}
-
+		campfire_message_free(msg);
+		xaction->messages = g_list_remove(xaction->messages, msg);
+		xaction->xml_response = NULL;
+		/* recurse */
+		campfire_message_handler_callback(xaction, campfire->gsc,
+		                                  PURPLE_INPUT_READ |
+		                                  PURPLE_INPUT_WRITE);
+	
 	}
-	campfire_message_free(msg);
-	xaction->messages = g_list_remove(xaction->messages, msg);
-	xaction->xml_response = NULL;
-	/* recurse */
-	campfire_message_handler_callback(xaction, campfire->gsc,
-	                                  PURPLE_INPUT_READ |
-	                                  PURPLE_INPUT_WRITE);
 
 }
 

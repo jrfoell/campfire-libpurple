@@ -44,6 +44,10 @@ campfire_login(PurpleAccount * account)
 	conn->hostname = g_strdup(userparts[1]);
 	g_strfreev(userparts);
 
+	purple_debug_info("campfire", "username: %s\n", username);
+	purple_debug_info("campfire", "display_name: %s\n", userparts[0]);
+	purple_debug_info("campfire", "hostname: %s\n", conn->hostname);
+
 	gc->proto_data = conn;
 
 	/*register campfire commands */
