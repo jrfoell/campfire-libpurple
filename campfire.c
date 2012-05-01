@@ -280,7 +280,7 @@ campfire_join_chat(PurpleConnection * gc, GHashTable * data)
 			}
 			if (!found) {
 				room_name_error = TRUE;
-				purple_notify_message(NULL, PURPLE_NOTIFY_MSG_ERROR,
+				purple_notify_message(campfire, PURPLE_NOTIFY_MSG_ERROR,
 				                      "campfire error",
 				                      "couldn't find 'id' field in roomlist.",
 				                      NULL,
@@ -307,7 +307,7 @@ campfire_join_chat(PurpleConnection * gc, GHashTable * data)
 
 			if (!found) {
 				room_name_error = TRUE;
-				purple_notify_message(NULL, PURPLE_NOTIFY_MSG_ERROR,
+				purple_notify_message(campfire, PURPLE_NOTIFY_MSG_ERROR,
 				                      "campfire error",
 				                      "couldn't find room name in roomlist.",
 				                      room_name,
