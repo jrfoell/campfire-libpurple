@@ -21,6 +21,10 @@ typedef struct _CampfireConn
 	GList *queue;
 	guint num_xaction_malloc; /* valgrind investigation */
 	guint num_xaction_free;   /* valgrind investigation */
+	gboolean needs_join;
+	GHashTable *desired_room;
 } CampfireConn;
+
+void campfire_join_chat(PurpleConnection * gc, GHashTable * data);
 
 #endif /* not CAMPFIRE_H */
