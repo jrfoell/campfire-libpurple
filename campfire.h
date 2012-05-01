@@ -22,9 +22,9 @@ typedef struct _CampfireConn
 	guint num_xaction_malloc; /* valgrind investigation */
 	guint num_xaction_free;   /* valgrind investigation */
 	gboolean needs_join;
-	GHashTable *desired_room;
+	gchar *desired_room;
 } CampfireConn;
 
-void campfire_join_chat(PurpleConnection * gc, GHashTable * data);
+void campfire_join_chat_after_room_query(CampfireConn * campfire, gchar *room_name);
 
 #endif /* not CAMPFIRE_H */

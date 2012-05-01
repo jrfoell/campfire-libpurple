@@ -705,7 +705,7 @@ campfire_room_query_callback(CampfireSslTransaction * xaction,
 	}
 	purple_roomlist_set_in_progress(xaction->campfire->roomlist, FALSE);
 	if (xaction->campfire->needs_join) {
-		campfire_join_chat(xaction->campfire->gc, xaction->campfire->desired_room);
+		campfire_join_chat_after_room_query(xaction->campfire, xaction->campfire->desired_room);
 	}
 }
 
