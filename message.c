@@ -1,5 +1,6 @@
 
 /* local includes */
+#include "campfire.h"
 #include "message.h"
 #include "http.h"
 
@@ -706,6 +707,9 @@ campfire_room_query_callback(CampfireSslTransaction * xaction,
 		g_free(id);
 	}
 	purple_roomlist_set_in_progress(xaction->campfire->roomlist, FALSE);
+	if (xaction->campfire->needs_join) {
+		campfire_join_chat(xaction->campfire->gc, xaction->campfire->desired_room);
+	}
 }
 
 void
