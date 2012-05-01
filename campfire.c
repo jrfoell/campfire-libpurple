@@ -10,8 +10,26 @@
 #include <cmds.h>
 
 gboolean
+hide_buddy_join_cb(urpleConversation *conv, const char *name,
+				   PurpleConvChatBuddyFlags flags, void *data) {
+	return TRUE;
+}
+
+gboolean
+hide_buddy_leave_cb(PurpleConversation *conv, const char *name,
+					const char *reason, void *data) {
+	return TRUE;
+}
+
+gboolean
 plugin_load(PurplePlugin * plugin)
 {
+	void *conv_handle = purple_conversations_get_handle();
+	purple_signal_connect(conv_handle, "chat-buddy-joining", plugin,
+						  PURPLE_CALLBACK(hide_buddy_join_cb), NULL);
+	purple_signal_connect(conv_handle, "chat-buddy-leaving", plugin,
+						  PURPLE_CALLBACK(hide_buddy_leave_cb), NULL);
+	
 	return TRUE;
 }
 

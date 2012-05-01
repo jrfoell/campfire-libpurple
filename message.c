@@ -41,9 +41,11 @@ campfire_get_message(xmlnode * xmlmessage)
 	xmlid = xmlnode_get_child(xmlmessage, "id");
 	msg_id = xmlnode_get_data(xmlid); /* needs g_free */
 
-	if (g_strcmp0(msgtype, CAMPFIRE_MESSAGE_TIME) == 0 ||
-		g_strcmp0(msgtype, CAMPFIRE_MESSAGE_ENTER) == 0 ||
-		g_strcmp0(msgtype, CAMPFIRE_MESSAGE_LEAVE) == 0) {
+	/*
+	 *|| g_strcmp0(msgtype, CAMPFIRE_MESSAGE_ENTER) == 0
+	 *|| g_strcmp0(msgtype, CAMPFIRE_MESSAGE_LEAVE) == 0
+	 */
+	if (g_strcmp0(msgtype, CAMPFIRE_MESSAGE_TIME) == 0) {
 		purple_debug_info("campfire", "Skipping message of type: %s\n",
 				  msgtype);
 		xmlmessage = xmlnode_get_next_twin(xmlmessage);
@@ -120,7 +122,10 @@ campfire_userlist_callback(CampfireSslTransaction * xaction,
 	purple_debug_info("campfire", "got all users in room %p\n", chatusers);
 
 	if (users == NULL) {
-		/* probably shouldn't happen */
+		/**
+		 * Can happen if you're the last user in the room, and you clicked "Leave" through
+		 * the web interface
+		 */
 		purple_debug_info("campfire", "removing all users from room\n");
 		purple_conv_chat_remove_users(chat,
 					      chatusers, NULL);
@@ -364,18 +369,13 @@ campfire_print_message(CampfireConn *campfire, CampfireRoom * room, CampfireMess
 					  msg->time);
 	} else {
 		message = g_string_new(user_name);
-		/*
-		 * @TODO figure out how to make pidgin do a "quiet" enter/leave:
-		 * quiet = GPOINTER_TO_INT(purple_signal_emit_return_1(purple_conversations_get_handle(),
-		 *			"chat-buddy-leaving", conv, user, reason))
 		if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_ENTER) == 0) {
 			g_string_append(message,
-					" entered the room.");
+					" has entered the room.");
 		} else if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_LEAVE) == 0) {
 			g_string_append(message,
-					"  left the room.");
-		} else */
-		if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_KICK) == 0) {
+					"  has left the room.");
+		} else if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_KICK) == 0) {
 			g_string_append(message, " kicked.");
 		} else if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_GUESTALLOW) == 0) {
 			g_string_append(message,
