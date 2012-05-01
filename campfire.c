@@ -9,9 +9,10 @@
 #include <debug.h>
 #include <cmds.h>
 
+
 gboolean
 plugin_load(PurplePlugin * plugin)
-{
+{	
 	return TRUE;
 }
 

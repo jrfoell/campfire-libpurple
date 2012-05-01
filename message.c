@@ -8,7 +8,8 @@
 #include <debug.h>
 
 /* internal function prototypes */
-void campfire_message_handler_callback(CampfireSslTransaction * xaction,
+void
+campfire_message_handler_callback(CampfireSslTransaction * xaction,
 				       PurpleSslConnection * gsc,
 				       PurpleInputCondition cond);
 
@@ -42,9 +43,7 @@ campfire_get_message(xmlnode * xmlmessage)
 	xmlid = xmlnode_get_child(xmlmessage, "id");
 	msg_id = xmlnode_get_data(xmlid); /* needs g_free */
 
-	if (g_strcmp0(msgtype, CAMPFIRE_MESSAGE_TIME) == 0 ||
-		g_strcmp0(msgtype, CAMPFIRE_MESSAGE_ENTER) == 0 ||
-		g_strcmp0(msgtype, CAMPFIRE_MESSAGE_LEAVE) == 0) {
+	if (g_strcmp0(msgtype, CAMPFIRE_MESSAGE_TIME) == 0) {
 		purple_debug_info("campfire", "Skipping message of type: %s\n",
 				  msgtype);
 		xmlmessage = xmlnode_get_next_twin(xmlmessage);
@@ -121,7 +120,10 @@ campfire_userlist_callback(CampfireSslTransaction * xaction,
 	purple_debug_info("campfire", "got all users in room %p\n", chatusers);
 
 	if (users == NULL) {
-		/* probably shouldn't happen */
+		/**
+		 * Can happen if you're the last user in the room, and you clicked "Leave" through
+		 * the web interface
+		 */
 		purple_debug_info("campfire", "removing all users from room\n");
 		purple_conv_chat_remove_users(chat,
 					      chatusers, NULL);
@@ -365,15 +367,13 @@ campfire_print_message(CampfireConn *campfire, CampfireRoom * room, CampfireMess
 					  msg->time);
 	} else {
 		message = g_string_new(user_name);
-		/*
 		if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_ENTER) == 0) {
 			g_string_append(message,
 					" has entered the room.");
 		} else if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_LEAVE) == 0) {
 			g_string_append(message,
 					" has left the room.");
-		} else */
-		if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_KICK) == 0) {
+		} else if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_KICK) == 0) {
 			g_string_append(message, " kicked.");
 		} else if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_GUESTALLOW) == 0) {
 			g_string_append(message,
@@ -853,6 +853,18 @@ campfire_fetch_first_messages(CampfireConn * campfire, gchar * room_id)
 			       PURPLE_INPUT_READ | PURPLE_INPUT_WRITE);
 }
 
+gboolean
+hide_buddy_join_cb(PurpleConversation *conv, const char *name,
+				   PurpleConvChatBuddyFlags flags, void *data) {
+	return TRUE;
+}
+
+gboolean
+hide_buddy_leave_cb(PurpleConversation *conv, const char *name,
+					const char *reason, void *data) {
+	return TRUE;
+}
+
 void
 campfire_room_join_callback(CampfireSslTransaction * xaction,
 			    PurpleSslConnection * gsc,
@@ -865,6 +877,14 @@ campfire_room_join_callback(CampfireSslTransaction * xaction,
 	serv_got_joined_chat(xaction->campfire->gc,
 			     g_ascii_strtoll(xaction->room_id, NULL, 10),
 			     room->name);
+
+	/* hide pidgin's join/part messages (we'll do them ourselves) */
+	void *conv_handle = purple_conversations_get_handle();
+	purple_signal_connect(conv_handle, "chat-buddy-joining", xaction->campfire,
+						  PURPLE_CALLBACK(hide_buddy_join_cb), NULL);
+	purple_signal_connect(conv_handle, "chat-buddy-leaving", xaction->campfire,
+						  PURPLE_CALLBACK(hide_buddy_leave_cb), NULL);
+	
 	campfire_fetch_first_messages(xaction->campfire, xaction->room_id);
 }
 
