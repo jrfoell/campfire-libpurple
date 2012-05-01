@@ -235,19 +235,25 @@ campfire_join_chat(PurpleConnection * gc, GHashTable * data)
 {
 	GList *hash_keys = NULL;
 	CampfireConn *campfire = gc->proto_data;
+
+	/* do this if you haven't gotten a roomlist yet */
 	if (!campfire->roomlist) {
 		campfire_roomlist_get_list(gc);
 		hash_keys = g_hash_table_get_keys(data);
 		g_list_foreach(hash_keys, campfire_print_key, NULL);
 		campfire->needs_join = TRUE;
 		campfire->desired_room = data;
+	/* come here from 'campfire_room_query_callback()' 
+	 * or when you're joining after a 'Get List'
+	 */
 	} else {
 		
 		gchar *id = g_hash_table_lookup(data, "id");
 		gchar *name = g_hash_table_lookup(data, "name");
+		gboolean room_name_error = FALSE;
 
 		/*alternate when not using "Room List" */
-		/* @TODO: needs error checking */
+		/* @TODO: error checking may be too simple */
 		if (!id) {
 			GList *fields;
 			GList *rooms;
@@ -256,6 +262,7 @@ campfire_join_chat(PurpleConnection * gc, GHashTable * data)
 			gint i;
 			gsize list_size;
 			gsize id_field_index;
+			gboolean found = FALSE;
 			gchar *room_name = g_hash_table_lookup(data, "room");
 			fields = purple_roomlist_get_fields(campfire->roomlist);
 			g_list_foreach(fields, campfire_print_field_name, NULL);
@@ -267,11 +274,24 @@ campfire_join_chat(PurpleConnection * gc, GHashTable * data)
 				purple_debug_info("campfire", "field name: %s\n", f->name);
 				if (strcmp("id", f->name) == 0) {
 					id_field_index = i;
+					found = TRUE;
 					break;
 				}
 			}
+			if (!found) {
+				room_name_error = TRUE;
+				purple_notify_message(NULL, PURPLE_NOTIFY_MSG_ERROR,
+				                      "campfire error",
+				                      "couldn't find 'id' field in roomlist.",
+				                      NULL,
+				                      NULL,
+				                      NULL);
+			} else {
+				found = FALSE;
+			}
 			rooms = campfire->roomlist->rooms;
 			list_size = g_list_length(rooms);
+
 			for (i = 0; i < list_size; i++) {
 				r = (PurpleRoomlistRoom *)g_list_nth_data(rooms, i);
 				if (strcmp(r->name, room_name) == 0) {
@@ -280,11 +300,26 @@ campfire_join_chat(PurpleConnection * gc, GHashTable * data)
 					purple_debug_info("campfire", "room found: %s\n", r->name);
 					id = g_list_nth_data(r->fields, id_field_index);
 					name = r->name;
+					found = TRUE;
+					break;
 				}
 			}
+
+			if (!found) {
+				room_name_error = TRUE;
+				purple_notify_message(NULL, PURPLE_NOTIFY_MSG_ERROR,
+				                      "campfire error",
+				                      "couldn't find room name in roomlist.",
+				                      room_name,
+				                      NULL,
+				                      NULL);
+			}
 		}
-		purple_debug_info("campfire", "trying to JOIN CHAT room id %s\n", id);
-		campfire_room_join(campfire, id, name);
+
+		if (!room_name_error) {
+			purple_debug_info("campfire", "trying to JOIN CHAT room id %s\n", id);
+			campfire_room_join(campfire, id, name);
+		}
 	}
 }
 
