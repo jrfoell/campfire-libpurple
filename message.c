@@ -365,12 +365,15 @@ campfire_print_message(CampfireConn *campfire, CampfireRoom * room, CampfireMess
 	} else {
 		message = g_string_new(user_name);
 		/*
+		 * @TODO figure out how to make pidgin do a "quiet" enter/leave:
+		 * quiet = GPOINTER_TO_INT(purple_signal_emit_return_1(purple_conversations_get_handle(),
+		 *			"chat-buddy-leaving", conv, user, reason))
 		if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_ENTER) == 0) {
 			g_string_append(message,
-					" has entered the room.");
+					" entered the room.");
 		} else if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_LEAVE) == 0) {
 			g_string_append(message,
-					" has left the room.");
+					"  left the room.");
 		} else */
 		if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_KICK) == 0) {
 			g_string_append(message, " kicked.");
