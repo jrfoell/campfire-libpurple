@@ -891,9 +891,21 @@ campfire_room_join_callback(CampfireSslTransaction * xaction,
 void
 campfire_room_join(CampfireConn * campfire, gchar * id, gchar * name)
 {
+	CampfireRoom *room = NULL;
+
+	if (!campfire->rooms) {
+		campfire->rooms = g_hash_table_new(g_str_hash, g_str_equal);
+	} else {
+		room = g_hash_table_lookup(campfire->rooms, id);
+		if ( room ) {
+			//already joined
+			purple_debug_info("campfire", "already in room: %s with id: %s\n", name, id);
+			return;
+		}
+	}
+	
 	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);
 	GString *uri = g_string_new("/room/");
-	CampfireRoom *room = NULL;
 
 	campfire->num_xaction_malloc++; /* valgrind investigation */
 	purple_debug_info("campfire", "%s: xaction: %p, campfire->num_xaction_malloc:%d\n",
@@ -901,9 +913,6 @@ campfire_room_join(CampfireConn * campfire, gchar * id, gchar * name)
 	g_string_append(uri, id);
 	g_string_append(uri, "/join.xml");
 
-	if (!campfire->rooms) {
-		campfire->rooms = g_hash_table_new(g_str_hash, g_str_equal);
-	}
 	purple_debug_info("campfire", "add room to list %s ID: %s\n", name, id);
 	room = g_new0(CampfireRoom, 1);
 	room->name = g_strdup(name);
