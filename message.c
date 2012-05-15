@@ -900,6 +900,12 @@ campfire_room_join(CampfireConn * campfire, gchar * id, gchar * name)
 		if ( room ) {
 			//already joined
 			purple_debug_info("campfire", "already in room: %s with id: %s\n", name, id);
+			purple_notify_message(campfire->gc, PURPLE_NOTIFY_MSG_ERROR,
+		                      "campfire error",
+		                      "already in this room.",
+		                      NULL,
+		                      NULL,
+		                      NULL);
 			return;
 		}
 	}
