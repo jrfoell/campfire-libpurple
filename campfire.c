@@ -11,13 +11,13 @@
 
 
 gboolean
-plugin_load(PurplePlugin * plugin)
-{	
+plugin_load(G_GNUC_UNUSED PurplePlugin * plugin)
+{
 	return TRUE;
 }
 
 gboolean
-plugin_unload(PurplePlugin * plugin)
+plugin_unload(G_GNUC_UNUSED PurplePlugin * plugin)
 {
 	return TRUE;
 }
@@ -75,23 +75,24 @@ campfire_login(PurpleAccount * account)
 }
 
 static void
-campfire_close(PurpleConnection * gc)
+campfire_close(G_GNUC_UNUSED PurpleConnection * gc)
 {
 }
 
 static void
-campfire_buddy_free(PurpleBuddy * buddy)
+campfire_buddy_free(G_GNUC_UNUSED PurpleBuddy * buddy)
 {
 }
 
 static gchar *
-campfire_status_text(PurpleBuddy * buddy)
+campfire_status_text(G_GNUC_UNUSED PurpleBuddy * buddy)
 {
 	return NULL;
 }
 
 static void
-campfire_set_status(PurpleAccount * acct, PurpleStatus * status)
+campfire_set_status(G_GNUC_UNUSED PurpleAccount * acct,
+		    G_GNUC_UNUSED PurpleStatus * status)
 {
 }
 
@@ -106,7 +107,7 @@ static GHashTable * campfire_get_account_text_table(PurpleAccount *account)
 */
 
 static GList *
-campfire_statuses(PurpleAccount * acct)
+campfire_statuses(G_GNUC_UNUSED PurpleAccount * acct)
 {
 	GList *types = NULL;
 	PurpleStatusType *status;
@@ -126,7 +127,7 @@ campfire_statuses(PurpleAccount * acct)
 }
 
 GList *
-campfire_chat_info(PurpleConnection * gc)
+campfire_chat_info(G_GNUC_UNUSED PurpleConnection * gc)
 {
 	GList *m = NULL;
 	struct proto_chat_entry *pce;
@@ -214,13 +215,13 @@ campfire_roomlist_cancel(PurpleRoomlist * list)
 	}
 }
 
-void campfire_print_key(gpointer data, gpointer user_data)
+void campfire_print_key(gpointer data, G_GNUC_UNUSED gpointer user_data)
 {
 	gchar *key = data;
 	purple_debug_info("campfire", "key: %s\n", key);
 }
 
-void campfire_print_field_name(gpointer data, gpointer user_data)
+void campfire_print_field_name(gpointer data, G_GNUC_UNUSED gpointer user_data)
 {
 	PurpleRoomlistField *field = data;
 	purple_debug_info("campfire", "field: %s\n", field->name);
@@ -235,9 +236,9 @@ campfire_join_chat_after_room_query(CampfireConn *campfire, gchar *room_name)
 	GList *rooms;
 	PurpleRoomlistRoom *r;
 	PurpleRoomlistField *f;
-	gint i;
+	gsize i;
 	gsize list_size;
-	gsize id_field_index;
+	gsize id_field_index = 0;
 	gboolean found = FALSE;
 	gchar *id   = NULL;
 	gchar *name = NULL;
@@ -343,20 +344,19 @@ campfire_join_chat(PurpleConnection * gc, GHashTable * data)
 			campfire_room_join(campfire, id, name);
 		}
 	}
-
-	
 }
 
 
 const char *
-campfireim_list_icon(PurpleAccount * account, PurpleBuddy * buddy)
+campfireim_list_icon(G_GNUC_UNUSED PurpleAccount * account,
+		     G_GNUC_UNUSED PurpleBuddy * buddy)
 {
 	return "campfire";
 }
 
 int
 campfire_chat_send(PurpleConnection * gc, int id, const char *message,
-		   PurpleMessageFlags flags)
+		   G_GNUC_UNUSED PurpleMessageFlags flags)
 {
 	campfire_message_send(gc->proto_data, id, message,
 			      CAMPFIRE_MESSAGE_TEXT);
@@ -440,6 +440,19 @@ static PurplePluginProtocolInfo campfire_protocol_info = {
 	NULL,			/* attention_types */
 	sizeof(PurplePluginProtocolInfo),	/* struct_size */
 	NULL,			/*campfire_get_account_text_table *//* get_account_text_table */
+	NULL,			/* initiate_media */
+	NULL,			/* get_media_caps */
+#if PURPLE_MAJOR_VERSION > 1
+#if PURPLE_MINOR_VERSION > 6
+	NULL,			/* get_moods */
+	NULL,			/* set_public_alias */
+	NULL,			/* get_public_alias */
+#if PURPLE_MINOR_VERSION > 7
+	NULL,			/* add_buddy_with_invite */
+	NULL,			/* add_buddies_with_invite */
+#endif /* PURPLE_MINOR_VERSION > 7 */
+#endif /* PURPLE_MINOR_VERSION > 6 */
+#endif /* PURPLE_MAJOR_VERSION > 1 */
 };
 
 static PurplePluginInfo info = {
@@ -472,7 +485,7 @@ static PurplePluginInfo info = {
 };
 
 static void
-plugin_init(PurplePlugin * plugin)
+plugin_init(G_GNUC_UNUSED PurplePlugin * plugin)
 {
 	PurpleAccountUserSplit *split;
 	PurpleAccountOption *option_token, *option_limit;

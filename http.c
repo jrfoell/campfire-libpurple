@@ -10,8 +10,9 @@
 #include <debug.h>
 
 void
-campfire_ssl_failure(PurpleSslConnection * gsc,
-		     PurpleSslErrorType error, gpointer data)
+campfire_ssl_failure(G_GNUC_UNUSED PurpleSslConnection * gsc,
+		     G_GNUC_UNUSED PurpleSslErrorType error,
+		     G_GNUC_UNUSED gpointer data)
 {
 	purple_debug_info("campfire", "ssl connect failure\n");
 }
@@ -50,7 +51,8 @@ campfire_http_request(CampfireSslTransaction * xaction, gchar * uri,
 	if (postxml) {
 		xmlstr = xmlnode_to_str(postxml, NULL);
 		g_string_append(xaction->http_request, "Content-Length: ");
-		len = g_strdup_printf("%lu", strlen(xmlstr));
+		/* len = g_strdup_printf("%lu", strlen(xmlstr)); */
+		len = g_strdup_printf("%" G_GSIZE_FORMAT, strlen(xmlstr));
 		g_string_append(xaction->http_request, len);
 		g_free(len);
 		g_string_append(xaction->http_request, "\r\n\r\n");
@@ -110,8 +112,8 @@ campfire_get_content_length_from_header(gsize * cl, GString * header)
 		return 1;
 	}
 	cl_size = eol - found_str;
-	purple_debug_info("campfire", "content length str len = %lu\n",
-			  cl_size);
+	purple_debug_info("campfire", "content length str len = %"
+			  G_GSIZE_FORMAT "\n", cl_size);
 	str = g_malloc0(cl_size + 1);
 	g_strlcpy(str, found_str, cl_size + 1);
 	tmp = g_ascii_strtoll(str, &extra_chars, 10);
@@ -120,7 +122,8 @@ campfire_get_content_length_from_header(gsize * cl, GString * header)
 		*cl = 0;
 		return 1;
 	}
-	purple_debug_info("campfire", "content length: %lu\n", tmp);
+	purple_debug_info("campfire", "content length: %" G_GSIZE_FORMAT "\n",
+			  tmp);
 	*cl = tmp;
 	return 0;
 }
@@ -218,7 +221,8 @@ campfire_process_http_content(CampfireHttpResponse * response)
 gint
 campfire_http_response(PurpleSslConnection * gsc,
 		       CampfireSslTransaction * xaction,
-		       PurpleInputCondition cond, xmlnode ** node)
+		       G_GNUC_UNUSED PurpleInputCondition cond,
+		       G_GNUC_UNUSED xmlnode ** node)
 {
 	gchar buf[1024];
 	GString *ssl_input;
@@ -316,7 +320,7 @@ campfire_http_response(PurpleSslConnection * gsc,
 		status = response->status;
 	} else {
 		status = 0;
-	}	
+	}
 	g_string_free(ssl_input, TRUE);
 	return status;
 }
@@ -478,7 +482,7 @@ campfire_ssl_connect_cb(CampfireConn * campfire, PurpleInputCondition cond)
 
 static void
 campfire_ssl_connect(CampfireConn * campfire,
-		     PurpleInputCondition cond,
+		     G_GNUC_UNUSED PurpleInputCondition cond,
 		     gboolean from_connection_callback)
 {
 	GList *first = NULL;
