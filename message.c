@@ -22,7 +22,7 @@ campfire_get_message(xmlnode * xmlmessage)
 	gchar *xmltime_data;
 	CampfireMessage *msg = NULL;
 	GTimeVal timeval;
-	time_t mtime;
+	time_t mtime = 0;
 
 	xmlbody = xmlnode_get_child(xmlmessage, "body");
 	body = xmlnode_get_data(xmlbody); /* needs g_free */
@@ -71,7 +71,8 @@ campfire_get_message(xmlnode * xmlmessage)
 
 void
 campfire_userlist_callback(CampfireSslTransaction * xaction,
-			   PurpleSslConnection * gsc, PurpleInputCondition cond)
+			   G_GNUC_UNUSED PurpleSslConnection * gsc,
+			   G_GNUC_UNUSED PurpleInputCondition cond)
 {
 	PurpleConversation *convo = NULL;
 	PurpleConvChat *chat = NULL;
@@ -134,7 +135,7 @@ campfire_userlist_callback(CampfireSslTransaction * xaction,
 			found = FALSE;
 			purple_debug_info("campfire",
 					  "checking to see if user %s has left\n",
-					  buddy->name);			
+					  buddy->name);
 			for (users_iter = users; users_iter; users_iter = users_iter->next) {
 				if (g_strcmp0(users_iter->data, buddy->name) == 0) {
 					purple_debug_info("campfire",
@@ -144,8 +145,6 @@ campfire_userlist_callback(CampfireSslTransaction * xaction,
 					break;
 				}
 			}
-
-			
 
 			if (!found) {
 				purple_debug_info("campfire",
@@ -165,7 +164,7 @@ campfire_new_xaction_copy(CampfireSslTransaction * original)
 	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);;
 	GList *msgs = NULL;
 	CampfireMessage *msg = NULL;
-	
+
 	original->campfire->num_xaction_malloc++; /* valgrind investigation */
 	purple_debug_info("campfire", "%s: xaction: %p, campfire->num_xaction_malloc:%d\n",
 	                  __FUNCTION__, xaction, original->campfire->num_xaction_malloc);
@@ -198,7 +197,8 @@ campfire_new_xaction_copy(CampfireSslTransaction * original)
 
 void
 campfire_message_callback(CampfireSslTransaction * xaction,
-			  PurpleSslConnection * gsc, PurpleInputCondition cond)
+			  G_GNUC_UNUSED PurpleSslConnection * gsc,
+			  G_GNUC_UNUSED PurpleInputCondition cond)
 {
 	xmlnode *xmlmessage = NULL;
 	GList *msgs = NULL;
@@ -353,7 +353,7 @@ campfire_print_message(CampfireConn *campfire, CampfireRoom * room, CampfireMess
 			(PURPLE_CONV_TYPE_ANY, room->name,
 			 purple_connection_get_account(campfire->gc));
 	GString *message = NULL;
-	
+
 	if (g_strcmp0(msg->type, CAMPFIRE_MESSAGE_TEXT) == 0 ||
 	    g_strcmp0(msg->type, CAMPFIRE_MESSAGE_TWEET) == 0 ||
 	    g_strcmp0(msg->type, CAMPFIRE_MESSAGE_PASTE) == 0) {
@@ -430,8 +430,8 @@ campfire_message_handler(CampfireSslTransaction * xaction,
 
 	if (!user_name) {
 		campfire_request_user(xaction, msg);
-		/* justin, this was your idea.  I see 
-		 * the need for it now. 
+		/* justin, this was your idea.  I see
+		 * the need for it now.
 		 */
 		if (xaction->queued == FALSE) {
 			campfire_xaction_free(xaction);
@@ -449,10 +449,10 @@ campfire_message_handler(CampfireSslTransaction * xaction,
 		/*
 		 * In order to not print out your own messages twice, we'll
 		 * keep a buffer of printed messages and check against that.
-		 */				
+		 */
 		purple_debug_info("campfire",
-						  "Checking to see if message ID \"%s\" has been written\n",
-						  msg->id);
+				  "Checking to see if message ID \"%s\" has been written\n",
+				  msg->id);
 
 		tmp_buf = g_list_first(room->message_id_buffer);
 
@@ -460,13 +460,13 @@ campfire_message_handler(CampfireSslTransaction * xaction,
 			 tmp_buf = tmp_buf->next) {
 			msg_id = tmp_buf->data;
 			purple_debug_info("campfire",
-							  "Looking at message ID %s from list\n",
-							  msg_id);
-			
+					  "Looking at message ID %s from list\n",
+					  msg_id);
+
 			if (g_strcmp0(msg_id, msg->id) == 0) {
 				purple_debug_info("campfire",
-								  "Won't write message \"%s\" already written\n",
-								  msg_id);
+						  "Won't write message \"%s\" already written\n",
+						  msg_id);
 				print = FALSE;
 				break;
 			}
@@ -495,7 +495,6 @@ campfire_message_handler(CampfireSslTransaction * xaction,
 			room->message_id_buffer = g_list_delete_link(
 				room->message_id_buffer,
 				g_list_first(room->message_id_buffer));
-			
 		}
 		campfire_message_free(msg);
 		xaction->messages = g_list_remove(xaction->messages, msg);
@@ -504,15 +503,14 @@ campfire_message_handler(CampfireSslTransaction * xaction,
 		campfire_message_handler_callback(xaction, campfire->gsc,
 		                                  PURPLE_INPUT_READ |
 		                                  PURPLE_INPUT_WRITE);
-	
 	}
 
 }
 
 void
 campfire_message_handler_callback(CampfireSslTransaction * xaction,
-				  PurpleSslConnection * gsc,
-				  PurpleInputCondition cond)
+				  G_GNUC_UNUSED PurpleSslConnection * gsc,
+				  G_GNUC_UNUSED PurpleInputCondition cond)
 {
 	CampfireConn *campfire = xaction->campfire;
 	GList *first = NULL;
@@ -559,7 +557,7 @@ campfire_message_handler_callback(CampfireSslTransaction * xaction,
 					     username);
 		}
 	}
-	
+
 	purple_debug_info("campfire",
 			  "xaction->messages: (%p)\n",
 			  xaction->messages);
@@ -586,10 +584,10 @@ campfire_message_handler_callback(CampfireSslTransaction * xaction,
 		}
 		/* 'un-queued' cleanup:
 		 * NOTE: any transaction that is 'queued' using
-		 * 'campfire_queue_xaction()' will be cleaned up in 
+		 * 'campfire_queue_xaction()' will be cleaned up in
 		 * 'campfire_ssl_handler()'.  However, there is a transaction
 		 * allocated in
-		 * 'campfire_message_send_callback()' 
+		 * 'campfire_message_send_callback()'
 		 * AND
 		 * 'campfire_message_callback()'
 		 * that are used but never 'queued', therefore it must be
@@ -603,8 +601,8 @@ campfire_message_handler_callback(CampfireSslTransaction * xaction,
 
 void
 campfire_message_send_callback(CampfireSslTransaction * xaction,
-			       PurpleSslConnection * gsc,
-			       PurpleInputCondition cond)
+			       G_GNUC_UNUSED PurpleSslConnection * gsc,
+			       G_GNUC_UNUSED PurpleInputCondition cond)
 {
 	CampfireMessage *msg = campfire_get_message(xaction->xml_response);
 	GList *msgs = NULL;
@@ -673,8 +671,8 @@ campfire_message_send(CampfireConn * campfire, int id, const char *message,
 
 void
 campfire_room_query_callback(CampfireSslTransaction * xaction,
-			     PurpleSslConnection * gsc,
-			     PurpleInputCondition cond)
+			     G_GNUC_UNUSED PurpleSslConnection * gsc,
+			     G_GNUC_UNUSED PurpleInputCondition cond)
 {
 	xmlnode *xmlroom = NULL, *xmlname = NULL, *xmltopic = NULL, *xmlid =
 		NULL;
@@ -729,8 +727,8 @@ campfire_room_query(CampfireConn * campfire)
 
 void
 campfire_room_update_callback(CampfireSslTransaction * xaction,
-			      PurpleSslConnection * gsc,
-			      PurpleInputCondition cond)
+			      G_GNUC_UNUSED PurpleSslConnection * gsc,
+			      G_GNUC_UNUSED PurpleInputCondition cond)
 {
 	campfire_room_check(xaction->campfire);
 }
@@ -782,7 +780,7 @@ campfire_room_update(CampfireConn * campfire, gint id, gchar * topic,
 
 PurpleCmdRet
 campfire_parse_cmd(PurpleConversation * conv, const gchar * cmd,
-		   gchar ** args, gchar ** error, void *data)
+		   gchar ** args, G_GNUC_UNUSED gchar ** error, void *data)
 {
 	PurpleConnection *gc = purple_conversation_get_gc(conv);
 	PurpleConvChat *chat = PURPLE_CONV_CHAT(conv);
@@ -854,21 +852,27 @@ campfire_fetch_first_messages(CampfireConn * campfire, gchar * room_id)
 }
 
 gboolean
-hide_buddy_join_cb(PurpleConversation *conv, const char *name,
-				   PurpleConvChatBuddyFlags flags, void *data) {
+hide_buddy_join_cb(G_GNUC_UNUSED PurpleConversation *conv,
+		   G_GNUC_UNUSED const char *name,
+		   G_GNUC_UNUSED PurpleConvChatBuddyFlags flags,
+		   G_GNUC_UNUSED void *data)
+{
 	return TRUE;
 }
 
 gboolean
-hide_buddy_leave_cb(PurpleConversation *conv, const char *name,
-					const char *reason, void *data) {
+hide_buddy_leave_cb(G_GNUC_UNUSED PurpleConversation *conv,
+		    G_GNUC_UNUSED const char *name,
+		    G_GNUC_UNUSED const char *reason,
+		    G_GNUC_UNUSED void *data)
+{
 	return TRUE;
 }
 
 void
 campfire_room_join_callback(CampfireSslTransaction * xaction,
-			    PurpleSslConnection * gsc,
-			    PurpleInputCondition cond)
+			    G_GNUC_UNUSED PurpleSslConnection * gsc,
+			    G_GNUC_UNUSED PurpleInputCondition cond)
 {
 	CampfireRoom *room =
 		g_hash_table_lookup(xaction->campfire->rooms, xaction->room_id);
@@ -884,7 +888,7 @@ campfire_room_join_callback(CampfireSslTransaction * xaction,
 						  PURPLE_CALLBACK(hide_buddy_join_cb), NULL);
 	purple_signal_connect(conv_handle, "chat-buddy-leaving", xaction->campfire,
 						  PURPLE_CALLBACK(hide_buddy_leave_cb), NULL);
-	
+
 	campfire_fetch_first_messages(xaction->campfire, xaction->room_id);
 }
 
@@ -909,7 +913,7 @@ campfire_room_join(CampfireConn * campfire, gchar * id, gchar * name)
 			return;
 		}
 	}
-	
+
 	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);
 	GString *uri = g_string_new("/room/");
 
@@ -941,8 +945,8 @@ campfire_room_join(CampfireConn * campfire, gchar * id, gchar * name)
 
 void
 campfire_room_leave_callback(CampfireSslTransaction * xaction,
-			     PurpleSslConnection * gsc,
-			     PurpleInputCondition cond)
+			     G_GNUC_UNUSED PurpleSslConnection * gsc,
+			     G_GNUC_UNUSED PurpleInputCondition cond)
 {
 	CampfireRoom *room =
 		g_hash_table_lookup(xaction->campfire->rooms, xaction->room_id);
@@ -958,7 +962,6 @@ campfire_room_leave_callback(CampfireSslTransaction * xaction,
 void
 campfire_room_leave(CampfireConn * campfire, gint id)
 {
-	
 	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);
 	GString *uri = NULL;
 
