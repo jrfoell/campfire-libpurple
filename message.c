@@ -129,6 +129,7 @@ campfire_userlist_callback(CampfireSslTransaction * xaction,
 		purple_conv_chat_remove_users(chat,
 					      chatusers, NULL);
 	} else if (chatusers != NULL) {
+		GList *remove = NULL;
 		purple_debug_info("campfire", "iterating chat users\n");
 		for (; chatusers != NULL; chatusers = chatusers->next) {
 			buddy = chatusers->data;
@@ -150,9 +151,13 @@ campfire_userlist_callback(CampfireSslTransaction * xaction,
 				purple_debug_info("campfire",
 						  "removing user %s that has left\n",
 						  buddy->name);
-				/* @TODO: MEMORY LEAK caused by g_strdup */
-				purple_conv_chat_remove_user(chat, g_strdup(buddy->name), NULL);
+				remove = g_list_prepend(remove,
+							g_strdup(buddy->name));
 			}
+		}
+		if (remove) {
+			purple_conv_chat_remove_users(chat, remove, "left");
+			g_list_free_full(remove, g_free);
 		}
 		g_list_free_full(users, &g_free);
 	}
