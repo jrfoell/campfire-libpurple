@@ -1,17 +1,17 @@
-LIBNAME=libcampfire.so
+LIBNAME = libcampfire.so
 
 .PHONY: all
 all: $(LIBNAME)
 
-C_SRCS:= campfire.c message.c http.c
+C_SRCS = campfire.c message.c http.c
 
 # Object file names using 'Substitution Reference'
-C_OBJS:=$(C_SRCS:.c=.o)
+C_OBJS = $(C_SRCS:.c=.o)
 
-CC:=gcc
-LD:=$(CC)
-CFLAGS_PURPLE:=$(shell pkg-config --cflags purple)
-CFLAGS:= \
+CC = gcc
+LD = $(CC)
+CFLAGS_PURPLE = $(shell pkg-config --cflags purple)
+CFLAGS = \
     -g \
     -O2 \
     -Wall \
@@ -21,8 +21,8 @@ CFLAGS:= \
     -DPIC -DENABLE_NLS \
     $(CFLAGS_PURPLE)
 
-LIBS_PURPLE:=$(shell pkg-config --libs purple)
-LDFLAGS=-shared
+LIBS_PURPLE = $(shell pkg-config --libs purple)
+LDFLAGS = -shared
 
 %.o: %.c
 	$(V_CC)$(CC) -c $(CFLAGS) -o $@ $<

@@ -636,6 +636,7 @@ campfire_message_send(CampfireConn * campfire, int id, const char *message,
 	gchar *room_id = g_strdup_printf("%i", id);
 	xmlnode *xmlmessage = NULL, *xmlchild = NULL;
 	gchar *debug_str;
+	gchar *unescaped;
 	CampfireSslTransaction *xaction = NULL;
 	GString *uri = NULL;
 
@@ -645,7 +646,9 @@ campfire_message_send(CampfireConn * campfire, int id, const char *message,
 	xmlmessage = xmlnode_new("message");
 	xmlnode_set_attrib(xmlmessage, "type", msg_type);
 	xmlchild = xmlnode_new_child(xmlmessage, "body");
-	xmlnode_insert_data(xmlchild, message, -1);
+	unescaped = purple_unescape_html(message);
+	xmlnode_insert_data(xmlchild, unescaped, -1);
+	g_free(unescaped);
 
 	uri = g_string_new("/room/");
 	g_string_append(uri, room_id);
