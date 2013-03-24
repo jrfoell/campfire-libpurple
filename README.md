@@ -1,16 +1,11 @@
 A campfire plugin for Pidgin, Adium and other libpurple based messengers.
 
 # Building
-Dependencies:
-        $ sudo apt-get install build-essential make libpurple-dev git-core
-
-Source:
-        $ git clone git://github.com/jrfoell/campfire-libpurple.git
-
-Build:
-        $ cd campfire-libpurple
-        $ sudo make
-        $ sudo make install
+   $ sudo apt-get install build-essential make libpurple-dev git-core
+   $ git clone git://github.com/jrfoell/campfire-libpurple.git
+   $ cd campfire-libpurple
+   $ sudo make
+   $ sudo make install
 
 And now, restart Pidgin.
 
