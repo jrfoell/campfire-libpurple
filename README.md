@@ -32,5 +32,6 @@ Theoretically, you should now be able to chat on Campfire using Pidgin. Here’s
 # Contributors
 * guitarmanvt - this help
 * jrfoell
+* jfoell
 * mtseinart
 
