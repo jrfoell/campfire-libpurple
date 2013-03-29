@@ -146,8 +146,9 @@ campfire_consume_http_header(CampfireHttpResponse * response,
 {
 	gchar blank_line[] = "\r\n\r\n";
 	gchar *header_end;
-	header_end = g_strstr_len(ssl_input->str, ssl_input->len, blank_line);
 	gsize header_len;
+
+	header_end = g_strstr_len(ssl_input->str, ssl_input->len, blank_line);
 	if (header_end) {
 		header_end += strlen(blank_line);
 		header_len = header_end - ssl_input->str;
@@ -327,7 +328,7 @@ campfire_http_response(PurpleSslConnection * gsc,
 
 
 void
-campfire_message_free(gpointer data)
+campfire_message_free(gpointer data, G_GNUC_UNUSED gpointer user_data)
 {
 	CampfireMessage *msg = (CampfireMessage *)(data);
 	if (msg != NULL) {
@@ -372,7 +373,8 @@ campfire_xaction_free(CampfireSslTransaction *xaction)
 		if (xaction->room_id) {
 			g_free(xaction->room_id);
 		}
-		g_list_free_full(xaction->messages, &campfire_message_free);
+		g_list_foreach(xaction->messages, campfire_message_free, NULL);
+		g_list_free(xaction->messages);
 		xaction->campfire->num_xaction_free++; /* valgrind investigation */
 		purple_debug_info("campfire", "xaction: %p, num_xaction_malloc:%d: num_xaction_free:%d\n",
 		                  xaction,
