@@ -13,7 +13,7 @@ campfire_message_handler_callback(CampfireSslTransaction * xaction,
 				       PurpleSslConnection * gsc,
 				       PurpleInputCondition cond);
 
-CampfireMessage *
+static CampfireMessage *
 campfire_get_message(xmlnode * xmlmessage)
 {
 	xmlnode *xmlbody = NULL, *xmluser_id = NULL, *xmltime = NULL,
@@ -163,7 +163,7 @@ campfire_userlist_callback(CampfireSslTransaction * xaction,
 	}
 }
 
-CampfireSslTransaction *
+static CampfireSslTransaction *
 campfire_new_xaction_copy(CampfireSslTransaction * original)
 {
 	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);;
@@ -200,7 +200,7 @@ campfire_new_xaction_copy(CampfireSslTransaction * original)
 	return xaction;
 }
 
-void
+static void
 campfire_message_callback(CampfireSslTransaction * xaction,
 			  G_GNUC_UNUSED PurpleSslConnection * gsc,
 			  G_GNUC_UNUSED PurpleInputCondition cond)
@@ -232,7 +232,7 @@ campfire_message_callback(CampfireSslTransaction * xaction,
 					  PURPLE_INPUT_READ);
 }
 
-gboolean
+static gboolean
 campfire_room_check(CampfireConn * campfire)
 {
 	GList *rooms = g_hash_table_get_values(campfire->rooms);
@@ -313,7 +313,7 @@ campfire_room_check(CampfireConn * campfire)
 	return TRUE;
 }
 
-void
+static void
 campfire_request_user(CampfireSslTransaction * xaction, CampfireMessage * msg)
 {
 	CampfireSslTransaction *xaction2 = campfire_new_xaction_copy(xaction);
@@ -330,7 +330,7 @@ campfire_request_user(CampfireSslTransaction * xaction, CampfireMessage * msg)
 	g_string_free(uri, TRUE);
 }
 
-void
+static void
 campfire_request_upload(CampfireSslTransaction * xaction, CampfireMessage * msg)
 {
 	CampfireSslTransaction *xaction2 = campfire_new_xaction_copy(xaction);
@@ -350,7 +350,7 @@ campfire_request_upload(CampfireSslTransaction * xaction, CampfireMessage * msg)
 	campfire_queue_xaction(xaction->campfire, xaction2, PURPLE_INPUT_READ);
 }
 
-void
+static void
 campfire_print_message(CampfireConn *campfire, CampfireRoom * room, CampfireMessage * msg,
 		       gchar * user_name, gchar * upload_url)
 {
@@ -412,7 +412,7 @@ campfire_print_message(CampfireConn *campfire, CampfireRoom * room, CampfireMess
 	}
 }
 
-void
+static void
 campfire_message_handler(CampfireSslTransaction * xaction,
 			 CampfireMessage * msg, gchar * upload_url)
 {
@@ -604,7 +604,7 @@ campfire_message_handler_callback(CampfireSslTransaction * xaction,
 	}
 }
 
-void
+static void
 campfire_message_send_callback(CampfireSslTransaction * xaction,
 			       G_GNUC_UNUSED PurpleSslConnection * gsc,
 			       G_GNUC_UNUSED PurpleInputCondition cond)
@@ -677,7 +677,7 @@ campfire_message_send(CampfireConn * campfire, int id, const char *message,
 			       PURPLE_INPUT_READ | PURPLE_INPUT_WRITE);
 }
 
-void
+static void
 campfire_room_query_callback(CampfireSslTransaction * xaction,
 			     G_GNUC_UNUSED PurpleSslConnection * gsc,
 			     G_GNUC_UNUSED PurpleInputCondition cond)
@@ -733,7 +733,7 @@ campfire_room_query(CampfireConn * campfire)
 }
 
 
-void
+static void
 campfire_room_update_callback(CampfireSslTransaction * xaction,
 			      G_GNUC_UNUSED PurpleSslConnection * gsc,
 			      G_GNUC_UNUSED PurpleInputCondition cond)
@@ -741,7 +741,7 @@ campfire_room_update_callback(CampfireSslTransaction * xaction,
 	campfire_room_check(xaction->campfire);
 }
 
-void
+static void
 campfire_room_update(CampfireConn * campfire, gint id, gchar * topic,
 		     gchar * room_name)
 {
@@ -825,7 +825,7 @@ campfire_parse_cmd(PurpleConversation * conv, const gchar * cmd,
 	return PURPLE_CMD_RET_OK;
 }
 
-void
+static void
 campfire_fetch_first_messages(CampfireConn * campfire, gchar * room_id)
 {
 	CampfireSslTransaction *xaction = g_new0(CampfireSslTransaction, 1);
@@ -859,7 +859,7 @@ campfire_fetch_first_messages(CampfireConn * campfire, gchar * room_id)
 			       PURPLE_INPUT_READ | PURPLE_INPUT_WRITE);
 }
 
-gboolean
+static gboolean
 hide_buddy_join_cb(G_GNUC_UNUSED PurpleConversation *conv,
 		   G_GNUC_UNUSED const char *name,
 		   G_GNUC_UNUSED PurpleConvChatBuddyFlags flags,
@@ -868,7 +868,7 @@ hide_buddy_join_cb(G_GNUC_UNUSED PurpleConversation *conv,
 	return TRUE;
 }
 
-gboolean
+static gboolean
 hide_buddy_leave_cb(G_GNUC_UNUSED PurpleConversation *conv,
 		    G_GNUC_UNUSED const char *name,
 		    G_GNUC_UNUSED const char *reason,
@@ -877,7 +877,7 @@ hide_buddy_leave_cb(G_GNUC_UNUSED PurpleConversation *conv,
 	return TRUE;
 }
 
-void
+static void
 campfire_room_join_callback(CampfireSslTransaction * xaction,
 			    G_GNUC_UNUSED PurpleSslConnection * gsc,
 			    G_GNUC_UNUSED PurpleInputCondition cond)
@@ -951,7 +951,7 @@ campfire_room_join(CampfireConn * campfire, gchar * id, gchar * name)
 			       PURPLE_INPUT_READ | PURPLE_INPUT_WRITE);
 }
 
-void
+static void
 campfire_room_leave_callback(CampfireSslTransaction * xaction,
 			     G_GNUC_UNUSED PurpleSslConnection * gsc,
 			     G_GNUC_UNUSED PurpleInputCondition cond)

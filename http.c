@@ -9,7 +9,7 @@
 /*purple includes*/
 #include <debug.h>
 
-void
+static void
 campfire_ssl_failure(G_GNUC_UNUSED PurpleSslConnection * gsc,
 		     G_GNUC_UNUSED PurpleSslErrorType error,
 		     G_GNUC_UNUSED gpointer data)
@@ -218,7 +218,7 @@ campfire_process_http_content(CampfireHttpResponse * response)
 			&response->response->str[content_start_index]);
 }
 
-gint
+static gint
 campfire_http_response(PurpleSslConnection * gsc,
 		       CampfireSslTransaction * xaction,
 		       G_GNUC_UNUSED PurpleInputCondition cond,
@@ -383,7 +383,7 @@ campfire_xaction_free(CampfireSslTransaction *xaction)
 
 }
 
-void
+static void
 campfire_ssl_handler(CampfireConn * campfire,
 		     PurpleSslConnection * gsc, PurpleInputCondition cond)
 {

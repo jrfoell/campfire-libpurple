@@ -10,13 +10,13 @@
 #include <cmds.h>
 
 
-gboolean
+static gboolean
 plugin_load(G_GNUC_UNUSED PurplePlugin * plugin)
 {
 	return TRUE;
 }
 
-gboolean
+static gboolean
 plugin_unload(G_GNUC_UNUSED PurplePlugin * plugin)
 {
 	return TRUE;
@@ -126,7 +126,7 @@ campfire_statuses(G_GNUC_UNUSED PurpleAccount * acct)
 
 }
 
-GList *
+static GList *
 campfire_chat_info(G_GNUC_UNUSED PurpleConnection * gc)
 {
 	GList *m = NULL;
@@ -141,7 +141,7 @@ campfire_chat_info(G_GNUC_UNUSED PurpleConnection * gc)
 	return m;
 }
 
-void
+static void
 campfire_chat_leave(PurpleConnection * gc, int id)
 {
 	purple_debug_info("campfire", "leaving CHAT room id %d\n", id);
@@ -149,14 +149,14 @@ campfire_chat_leave(PurpleConnection * gc, int id)
 	campfire_room_leave(gc->proto_data, id);
 }
 
-char *
+static char *
 campfire_get_chat_name(GHashTable * data)
 {
 	return g_strdup(g_hash_table_lookup(data, "room"));
 }
 
 
-PurpleRoomlist *
+static PurpleRoomlist *
 campfire_roomlist_get_list(PurpleConnection * gc)
 {
 	CampfireConn *campfire = gc->proto_data;
@@ -196,7 +196,7 @@ campfire_roomlist_get_list(PurpleConnection * gc)
 	return campfire->roomlist;
 }
 
-void
+static void
 campfire_roomlist_cancel(PurpleRoomlist * list)
 {
 	PurpleConnection *gc = purple_account_get_connection(list->account);
@@ -215,13 +215,15 @@ campfire_roomlist_cancel(PurpleRoomlist * list)
 	}
 }
 
-void campfire_print_key(gpointer data, G_GNUC_UNUSED gpointer user_data)
+static void
+campfire_print_key(gpointer data, G_GNUC_UNUSED gpointer user_data)
 {
 	gchar *key = data;
 	purple_debug_info("campfire", "key: %s\n", key);
 }
 
-void campfire_print_field_name(gpointer data, G_GNUC_UNUSED gpointer user_data)
+static void
+campfire_print_field_name(gpointer data, G_GNUC_UNUSED gpointer user_data)
 {
 	PurpleRoomlistField *field = data;
 	purple_debug_info("campfire", "field: %s\n", field->name);
@@ -302,7 +304,7 @@ campfire_join_chat_after_room_query(CampfireConn *campfire, gchar *room_name)
 	}
 }
 
-void
+static void
 campfire_join_chat(PurpleConnection * gc, GHashTable * data)
 {
 	GList *hash_keys = NULL;
@@ -347,14 +349,14 @@ campfire_join_chat(PurpleConnection * gc, GHashTable * data)
 }
 
 
-const char *
+static const char *
 campfireim_list_icon(G_GNUC_UNUSED PurpleAccount * account,
 		     G_GNUC_UNUSED PurpleBuddy * buddy)
 {
 	return "campfire";
 }
 
-int
+static int
 campfire_chat_send(PurpleConnection * gc, int id, const char *message,
 		   G_GNUC_UNUSED PurpleMessageFlags flags)
 {
