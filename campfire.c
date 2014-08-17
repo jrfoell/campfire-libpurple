@@ -490,7 +490,7 @@ static void
 plugin_init(G_GNUC_UNUSED PurplePlugin * plugin)
 {
 	PurpleAccountUserSplit *split;
-	PurpleAccountOption *option_token, *option_limit;
+	PurpleAccountOption *option_token, *option_limit, *option_nicks;
 
 	split = purple_account_user_split_new(_("Hostname"), NULL, '@');
 	campfire_protocol_info.user_splits =
@@ -509,6 +509,13 @@ plugin_init(G_GNUC_UNUSED PurplePlugin * plugin)
 	campfire_protocol_info.protocol_options =
 		g_list_append(campfire_protocol_info.protocol_options,
 			      option_limit);
+
+	option_nicks =
+		purple_account_option_string_new(_("Notify on these words"),
+					      "nicks", NULL);
+	campfire_protocol_info.protocol_options =
+		g_list_append(campfire_protocol_info.protocol_options,
+			      option_nicks);
 }
 
 PURPLE_INIT_PLUGIN(campfire, plugin_init, info);

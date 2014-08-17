@@ -66,5 +66,7 @@ PurpleCmdRet
 campfire_parse_cmd(PurpleConversation *conv, const gchar *cmd,
 				   gchar **args, gchar **error, void *data);
 
+char *replace(char *orig, char *rep, char *with);
+
 #endif /* not MESSAGE_H */
 
