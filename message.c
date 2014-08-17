@@ -374,7 +374,6 @@ campfire_print_message(CampfireConn *campfire, CampfireRoom * room, CampfireMess
 				  "Writing chat message \"%s\" to %p from name %s\n",
 				  msg->message, convo,
 				  user_name);
-<<<<<<< HEAD
 		const gchar *nick = purple_account_get_string(campfire->account, "nicks", "LOL");
 		int flag = PURPLE_MESSAGE_RECV;
 		gchar s[256];
@@ -389,14 +388,8 @@ campfire_print_message(CampfireConn *campfire, CampfireRoom * room, CampfireMess
 		}
 
 		purple_conversation_write(convo, user_name,
-					  msg->message,
-					  flag,
-=======
-
-		purple_conversation_write(convo, user_name,
 					  replace(replace(msg->message, "<", "&lt;"), ">", "&gt;"),
-					  PURPLE_MESSAGE_RECV,
->>>>>>> feature/display-xml-tags
+					  flag,
 					  msg->time);
 	} else {
 		message = g_string_new(user_name);
